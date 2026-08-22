@@ -21,21 +21,10 @@ on:
       - '**/*.podspec'
       - '**/react-native.config.js'
       - '**/nitro.json'
-  pull_request:
-    paths:
-      - '.github/workflows/ios-build.yml'
-      - 'example/ios/**'
-      - 'example/Gemfile'
-      - 'example/Gemfile.lock'
-      - '**/nitrogen/generated/shared/**'
-      - '**/nitrogen/generated/ios/**'
-      - 'cpp/**'
-      - 'ios/**'
-      - '**/Podfile.lock'
-      - '**/bun.lock'
-      - '**/*.podspec'
-      - '**/react-native.config.js'
-      - '**/nitro.json'
+  # No path filter here (unlike the push trigger above): this check is required by branch
+  # protection on main, and a required check that never runs on a given PR leaves that PR
+  # permanently unmergeable. Always running on every PR keeps it reliable.
+  pull_request: {}
   workflow_dispatch:
 
 env:
