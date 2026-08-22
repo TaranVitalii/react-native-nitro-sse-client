@@ -70,7 +70,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^4.2.1",
     "nitrogen": "0.37.0",
-    "prettier": "2.8.8",
+    "prettier": "3.9.6",
     "react": "19.2.3",
     "react-native": "0.87.0",
     "react-native-builder-bob": "^0.40.18",
