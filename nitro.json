@@ -1,0 +1,30 @@
+{
+  "$schema": "https://nitro.margelo.com/nitro.schema.json",
+  "cxxNamespace": [
+    "nitrosseclient"
+  ],
+  "ios": {
+    "iosModuleName": "NitroSseClient"
+  },
+  "android": {
+    "androidNamespace": [
+      "nitrosseclient"
+    ],
+    "androidCxxLibName": "NitroSseClient"
+  },
+  "autolinking": {
+    "SSEClient": {
+      "ios": {
+        "language": "swift",
+        "implementationClassName": "HybridSSEClient"
+      },
+      "android": {
+        "language": "kotlin",
+        "implementationClassName": "HybridSSEClient"
+      }
+    }
+  },
+  "ignorePaths": [
+    "**/node_modules"
+  ]
+}
