@@ -28,11 +28,9 @@
 #error NitroModules cannot be found! Are you sure you installed NitroModules properly?
 #endif
 
-// Forward declaration of `SSEMetricsPhase` to properly resolve imports.
-namespace margelo::nitro::nitrosseclient { enum class SSEMetricsPhase; }
 
-#include "SSEMetricsPhase.hpp"
-#include <optional>
+
+
 
 namespace margelo::nitro::nitrosseclient {
 
@@ -41,17 +39,11 @@ namespace margelo::nitro::nitrosseclient {
    */
   struct SSEConnectionMetrics final {
   public:
-    SSEMetricsPhase phase     SWIFT_PRIVATE;
-    std::optional<double> ttfbMs     SWIFT_PRIVATE;
-    std::optional<double> dnsMs     SWIFT_PRIVATE;
-    std::optional<double> connectMs     SWIFT_PRIVATE;
-    std::optional<double> tlsMs     SWIFT_PRIVATE;
-    std::optional<bool> connectionReused     SWIFT_PRIVATE;
-    double timestampMs     SWIFT_PRIVATE;
+    bool connectionReused     SWIFT_PRIVATE;
 
   public:
     SSEConnectionMetrics() = default;
-    explicit SSEConnectionMetrics(SSEMetricsPhase phase, std::optional<double> ttfbMs, std::optional<double> dnsMs, std::optional<double> connectMs, std::optional<double> tlsMs, std::optional<bool> connectionReused, double timestampMs): phase(phase), ttfbMs(ttfbMs), dnsMs(dnsMs), connectMs(connectMs), tlsMs(tlsMs), connectionReused(connectionReused), timestampMs(timestampMs) {}
+    explicit SSEConnectionMetrics(bool connectionReused): connectionReused(connectionReused) {}
 
   public:
     friend bool operator==(const SSEConnectionMetrics& lhs, const SSEConnectionMetrics& rhs) = default;
@@ -67,24 +59,12 @@ namespace margelo::nitro {
     static inline margelo::nitro::nitrosseclient::SSEConnectionMetrics fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
       return margelo::nitro::nitrosseclient::SSEConnectionMetrics(
-        JSIConverter<margelo::nitro::nitrosseclient::SSEMetricsPhase>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "phase"))),
-        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "ttfbMs"))),
-        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "dnsMs"))),
-        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "connectMs"))),
-        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "tlsMs"))),
-        JSIConverter<std::optional<bool>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "connectionReused"))),
-        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "timestampMs")))
+        JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "connectionReused")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::nitrosseclient::SSEConnectionMetrics& arg) {
       jsi::Object obj(runtime);
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "phase"), JSIConverter<margelo::nitro::nitrosseclient::SSEMetricsPhase>::toJSI(runtime, arg.phase));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "ttfbMs"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.ttfbMs));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "dnsMs"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.dnsMs));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "connectMs"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.connectMs));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "tlsMs"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.tlsMs));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "connectionReused"), JSIConverter<std::optional<bool>>::toJSI(runtime, arg.connectionReused));
-      obj.setProperty(runtime, PropNameIDCache::get(runtime, "timestampMs"), JSIConverter<double>::toJSI(runtime, arg.timestampMs));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "connectionReused"), JSIConverter<bool>::toJSI(runtime, arg.connectionReused));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -95,13 +75,7 @@ namespace margelo::nitro {
       if (!nitro::isPlainObject(runtime, obj)) {
         return false;
       }
-      if (!JSIConverter<margelo::nitro::nitrosseclient::SSEMetricsPhase>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "phase")))) return false;
-      if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "ttfbMs")))) return false;
-      if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "dnsMs")))) return false;
-      if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "connectMs")))) return false;
-      if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "tlsMs")))) return false;
-      if (!JSIConverter<std::optional<bool>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "connectionReused")))) return false;
-      if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "timestampMs")))) return false;
+      if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "connectionReused")))) return false;
       return true;
     }
   };

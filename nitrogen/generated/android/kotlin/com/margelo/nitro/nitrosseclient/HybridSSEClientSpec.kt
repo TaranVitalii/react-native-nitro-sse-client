@@ -85,7 +85,7 @@ abstract class HybridSSEClientSpec: HybridObject() {
   // Methods
   @DoNotStrip
   @Keep
-  abstract fun connect(url: String): Unit
+  abstract fun connect(url: String, session: SSESessionOptions?): Unit
   
   @DoNotStrip
   @Keep

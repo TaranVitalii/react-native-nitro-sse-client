@@ -16,15 +16,15 @@ namespace NitroSseClient { class HybridSSEClientSpec_cxx; }
 namespace margelo::nitro::nitrosseclient { struct SSEMessageEvent; }
 // Forward declaration of `SSEConnectionMetrics` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
-// Forward declaration of `SSEMetricsPhase` to properly resolve imports.
-namespace margelo::nitro::nitrosseclient { enum class SSEMetricsPhase; }
+// Forward declaration of `SSESessionOptions` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 
 #include "SSEMessageEvent.hpp"
 #include <functional>
 #include <string>
 #include <optional>
 #include "SSEConnectionMetrics.hpp"
-#include "SSEMetricsPhase.hpp"
+#include "SSESessionOptions.hpp"
 
 #include "NitroSseClient-Swift-Cxx-Umbrella.hpp"
 
@@ -103,8 +103,8 @@ namespace margelo::nitro::nitrosseclient {
 
   public:
     // Methods
-    inline void connect(const std::string& url) override {
-      auto __result = _swiftPart.connect(url);
+    inline void connect(const std::string& url, const std::optional<SSESessionOptions>& session) override {
+      auto __result = _swiftPart.connect(url, session);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }

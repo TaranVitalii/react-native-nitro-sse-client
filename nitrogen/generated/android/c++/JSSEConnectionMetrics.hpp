@@ -10,9 +10,7 @@
 #include <fbjni/fbjni.h>
 #include "SSEConnectionMetrics.hpp"
 
-#include "JSSEMetricsPhase.hpp"
-#include "SSEMetricsPhase.hpp"
-#include <optional>
+
 
 namespace margelo::nitro::nitrosseclient {
 
@@ -33,28 +31,10 @@ namespace margelo::nitro::nitrosseclient {
     [[nodiscard]]
     SSEConnectionMetrics toCpp() const {
       static const auto clazz = javaClassStatic();
-      static const auto fieldPhase = clazz->getField<JSSEMetricsPhase>("phase");
-      jni::local_ref<JSSEMetricsPhase> phase = this->getFieldValue(fieldPhase);
-      static const auto fieldTtfbMs = clazz->getField<jni::JDouble>("ttfbMs");
-      jni::local_ref<jni::JDouble> ttfbMs = this->getFieldValue(fieldTtfbMs);
-      static const auto fieldDnsMs = clazz->getField<jni::JDouble>("dnsMs");
-      jni::local_ref<jni::JDouble> dnsMs = this->getFieldValue(fieldDnsMs);
-      static const auto fieldConnectMs = clazz->getField<jni::JDouble>("connectMs");
-      jni::local_ref<jni::JDouble> connectMs = this->getFieldValue(fieldConnectMs);
-      static const auto fieldTlsMs = clazz->getField<jni::JDouble>("tlsMs");
-      jni::local_ref<jni::JDouble> tlsMs = this->getFieldValue(fieldTlsMs);
-      static const auto fieldConnectionReused = clazz->getField<jni::JBoolean>("connectionReused");
-      jni::local_ref<jni::JBoolean> connectionReused = this->getFieldValue(fieldConnectionReused);
-      static const auto fieldTimestampMs = clazz->getField<double>("timestampMs");
-      double timestampMs = this->getFieldValue(fieldTimestampMs);
+      static const auto fieldConnectionReused = clazz->getField<jboolean>("connectionReused");
+      jboolean connectionReused = this->getFieldValue(fieldConnectionReused);
       return SSEConnectionMetrics(
-        phase->toCpp(),
-        ttfbMs != nullptr ? std::make_optional(ttfbMs->value()) : std::nullopt,
-        dnsMs != nullptr ? std::make_optional(dnsMs->value()) : std::nullopt,
-        connectMs != nullptr ? std::make_optional(connectMs->value()) : std::nullopt,
-        tlsMs != nullptr ? std::make_optional(tlsMs->value()) : std::nullopt,
-        connectionReused != nullptr ? std::make_optional(static_cast<bool>(connectionReused->value())) : std::nullopt,
-        timestampMs
+        static_cast<bool>(connectionReused)
       );
     }
 
@@ -64,18 +44,12 @@ namespace margelo::nitro::nitrosseclient {
      */
     [[maybe_unused]]
     static jni::local_ref<JSSEConnectionMetrics::javaobject> fromCpp(const SSEConnectionMetrics& value) {
-      using JSignature = JSSEConnectionMetrics(jni::alias_ref<JSSEMetricsPhase>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JBoolean>, double);
+      using JSignature = JSSEConnectionMetrics(jboolean);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
         clazz,
-        JSSEMetricsPhase::fromCpp(value.phase),
-        value.ttfbMs.has_value() ? jni::JDouble::valueOf(value.ttfbMs.value()) : nullptr,
-        value.dnsMs.has_value() ? jni::JDouble::valueOf(value.dnsMs.value()) : nullptr,
-        value.connectMs.has_value() ? jni::JDouble::valueOf(value.connectMs.value()) : nullptr,
-        value.tlsMs.has_value() ? jni::JDouble::valueOf(value.tlsMs.value()) : nullptr,
-        value.connectionReused.has_value() ? jni::JBoolean::valueOf(value.connectionReused.value()) : nullptr,
-        value.timestampMs
+        value.connectionReused
       );
     }
   };

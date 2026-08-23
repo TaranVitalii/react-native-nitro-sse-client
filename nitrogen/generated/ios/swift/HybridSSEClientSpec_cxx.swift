@@ -199,9 +199,9 @@ open class HybridSSEClientSpec_cxx {
 
   // Methods
   @inline(__always)
-  public final func connect(url: std.string) -> bridge.Result_void_ {
+  public final func connect(url: std.string, session: bridge.std__optional_SSESessionOptions_) -> bridge.Result_void_ {
     do {
-      try self.__implementation.connect(url: String(url))
+      try self.__implementation.connect(url: String(url), session: session.value)
       return bridge.create_Result_void_()
     } catch (let __error) {
       let __exceptionPtr = __error.toCpp()

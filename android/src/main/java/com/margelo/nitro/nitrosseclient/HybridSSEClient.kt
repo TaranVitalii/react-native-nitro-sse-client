@@ -4,6 +4,7 @@ import android.util.Log
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Connection
+import okhttp3.Dispatcher
 import okhttp3.EventListener
 import okhttp3.Handshake
 import okhttp3.OkHttpClient
@@ -28,8 +29,90 @@ private class CallTimings {
 }
 
 // Tags the Request for a given connect() attempt so the shared client's EventListener (which
-// only sees the OkHttp Call) can be correlated back to the same connection attempt when it closes.
+// only sees the OkHttp Call) can be correlated back to the same connection attempt when it
+// closes. generation is unique across every HybridSSEClient instance, purely as a correlation key.
 private data class ConnectionAttempt(val generation: Int)
+
+/**
+ * Shared by every HybridSSEClient instance — created once and reused for every connect()/
+ * disconnect() cycle across ALL instances (not just reconnects on the same one), so the
+ * connection pool persists no matter which instance is talking to a given host.
+ */
+private object SharedClient {
+  private var client: OkHttpClient? = null
+  val timingsByGeneration = mutableMapOf<Int, CallTimings>()
+  private var generationCounter = 0
+
+  @Synchronized
+  fun nextGeneration(): Int {
+    generationCounter += 1
+    return generationCounter
+  }
+
+  // Lazily created from whichever connect() call comes first, across every instance — later
+  // calls' `session` options are silently ignored once this exists, since recreating it would
+  // drop every connection already in the pool. Synchronized so two instances racing to connect()
+  // for the first time can't each create their own client.
+  @Synchronized
+  fun get(options: SSESessionOptions?): OkHttpClient {
+    client?.let { return it }
+
+    val readTimeoutSeconds = options?.timeoutSeconds ?: 0.0 // matches the previous default: no timeout
+    // OkHttp has no direct equivalent of iOS's httpMaximumConnectionsPerHost; maxRequestsPerHost
+    // is the closest analogue (concurrent requests to a single host), defaulting to OkHttp's own
+    // built-in default when not specified.
+    val maxRequestsPerHost = options?.maxConnectionsPerHost?.toInt() ?: Dispatcher().maxRequestsPerHost
+
+    // We talk to OkHttp directly (client.newCall(...).enqueue(...)) rather than through
+    // okhttp-sse's EventSource: RealEventSource.connect() internally does
+    // `client.newBuilder().eventListener(...).build()`, which silently replaces this
+    // eventListenerFactory, so our handshake/TLS timings would never fire if routed through it.
+    val newClient = OkHttpClient.Builder()
+      .readTimeout(readTimeoutSeconds.toLong(), TimeUnit.SECONDS)
+      .dispatcher(Dispatcher().apply { this.maxRequestsPerHost = maxRequestsPerHost })
+      .eventListenerFactory { call ->
+        val attempt = call.request().tag(ConnectionAttempt::class.java)
+        val timings = CallTimings()
+        if (attempt != null) timingsByGeneration[attempt.generation] = timings
+
+        object : EventListener() {
+          override fun callStart(call: Call) {
+            timings.callStart = System.nanoTime()
+          }
+
+          override fun connectStart(call: Call, inetSocketAddress: InetSocketAddress, proxy: Proxy) {
+            timings.connectStart = System.nanoTime()
+          }
+
+          override fun secureConnectStart(call: Call) {
+            timings.secureConnectStart = System.nanoTime()
+          }
+
+          override fun secureConnectEnd(call: Call, handshake: Handshake?) {
+            timings.secureConnectEnd = System.nanoTime()
+          }
+
+          override fun connectEnd(call: Call, inetSocketAddress: InetSocketAddress, proxy: Proxy, protocol: Protocol?) {
+            timings.connectEnd = System.nanoTime()
+          }
+
+          override fun connectionAcquired(call: Call, connection: Connection) {
+            // If connectStart never fired for this call, OkHttp handed us an already-pooled
+            // connection instead of opening a new one — that absence is the reuse signal.
+            timings.connectionReused = timings.connectStart == null
+          }
+
+          override fun responseHeadersStart(call: Call) {
+            timings.responseHeadersStart = System.nanoTime()
+          }
+        }
+      }
+      .build()
+
+    client = newClient
+    return newClient
+  }
+}
 
 class HybridSSEClient : HybridSSEClientSpec() {
   override var onMessage: (event: SSEMessageEvent) -> Unit = {}
@@ -37,69 +120,17 @@ class HybridSSEClient : HybridSSEClientSpec() {
   override var onError: (message: String) -> Unit = {}
   override var onMetrics: (metrics: SSEConnectionMetrics) -> Unit = {}
 
-  private val timingsByGeneration = mutableMapOf<Int, CallTimings>()
-  private var generationCounter = 0
-
-  // Created once and reused for every connect()/disconnect() cycle so its connection pool
-  // survives reconnects — reconnects reuse pooled HTTP/2 connections instead of re-handshaking.
-  //
-  // We talk to OkHttp directly (client.newCall(...).enqueue(...)) rather than through
-  // okhttp-sse's EventSource: RealEventSource.connect() internally does
-  // `client.newBuilder().eventListener(...).build()`, which silently replaces this
-  // eventListenerFactory, so our handshake/TLS timings would never fire if routed through it.
-  private val client: OkHttpClient = OkHttpClient.Builder()
-    .readTimeout(0, TimeUnit.MILLISECONDS)
-    .eventListenerFactory { call ->
-      val attempt = call.request().tag(ConnectionAttempt::class.java)
-      val timings = CallTimings()
-      if (attempt != null) timingsByGeneration[attempt.generation] = timings
-
-      object : EventListener() {
-        override fun callStart(call: Call) {
-          timings.callStart = System.nanoTime()
-        }
-
-        override fun connectStart(call: Call, inetSocketAddress: InetSocketAddress, proxy: Proxy) {
-          timings.connectStart = System.nanoTime()
-        }
-
-        override fun secureConnectStart(call: Call) {
-          timings.secureConnectStart = System.nanoTime()
-        }
-
-        override fun secureConnectEnd(call: Call, handshake: Handshake?) {
-          timings.secureConnectEnd = System.nanoTime()
-        }
-
-        override fun connectEnd(call: Call, inetSocketAddress: InetSocketAddress, proxy: Proxy, protocol: Protocol?) {
-          timings.connectEnd = System.nanoTime()
-        }
-
-        override fun connectionAcquired(call: Call, connection: Connection) {
-          // If connectStart never fired for this call, OkHttp handed us an already-pooled
-          // connection instead of opening a new one — that absence is the reuse signal.
-          timings.connectionReused = timings.connectStart == null
-        }
-
-        override fun responseHeadersStart(call: Call) {
-          timings.responseHeadersStart = System.nanoTime()
-        }
-      }
-    }
-    .build()
-
   private var currentCall: Call? = null
   private var connectStartedAt: Long? = null
   private var firstByteLogged = false
 
-  override fun connect(url: String) {
+  override fun connect(url: String, session: SSESessionOptions?) {
     currentCall?.let { emitCloseMetrics(it) }
     currentCall?.cancel()
 
     firstByteLogged = false
     connectStartedAt = System.nanoTime()
-    generationCounter += 1
-    val generation = generationCounter
+    val generation = SharedClient.nextGeneration()
 
     val request = Request.Builder()
       .url(url)
@@ -110,7 +141,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
       .tag(ConnectionAttempt::class.java, ConnectionAttempt(generation))
       .build()
 
-    val call = client.newCall(request)
+    val call = SharedClient.get(session).newCall(request)
     currentCall = call
 
     call.enqueue(object : Callback {
@@ -162,23 +193,14 @@ class HybridSSEClient : HybridSSEClientSpec() {
     currentCall = null
   }
 
+  // Native-only diagnostic — not sent to JS. onMetrics is limited to connectionReused (see
+  // SSEConnectionMetrics on the JS side), which isn't knowable until the connection closes.
   private fun maybeLogFirstByte() {
     if (firstByteLogged) return
     firstByteLogged = true
     val startedAt = connectStartedAt ?: return
     val ttfbMs = (System.nanoTime() - startedAt) / 1_000_000.0
     Log.d(LOG_TAG, "time to first data: ${"%.1f".format(ttfbMs)}ms")
-    onMetrics(
-      SSEConnectionMetrics(
-        phase = SSEMetricsPhase.TTFB,
-        ttfbMs = ttfbMs,
-        dnsMs = null,
-        connectMs = null,
-        tlsMs = null,
-        connectionReused = null,
-        timestampMs = System.currentTimeMillis().toDouble()
-      )
-    )
   }
 
   private fun parseAndEmit(rawEvent: String) {
@@ -204,7 +226,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
 
   private fun emitCloseMetrics(call: Call) {
     val attempt = call.request().tag(ConnectionAttempt::class.java) ?: return
-    val timings = timingsByGeneration.remove(attempt.generation) ?: return
+    val timings = SharedClient.timingsByGeneration.remove(attempt.generation) ?: return
 
     fun durationMs(start: Long?, end: Long?): Double? {
       if (start == null || end == null) return null
@@ -215,21 +237,12 @@ class HybridSSEClient : HybridSSEClientSpec() {
     val tlsMs = durationMs(timings.secureConnectStart, timings.secureConnectEnd)
     val ttfbMs = durationMs(timings.callStart, timings.responseHeadersStart)
 
+    // Full breakdown stays native-only (log line) — only connectionReused crosses the bridge.
     Log.d(
       LOG_TAG,
       "connection closed reused=${timings.connectionReused} connect=${connectMs}ms tls=${tlsMs}ms ttfb=${ttfbMs}ms"
     )
 
-    onMetrics(
-      SSEConnectionMetrics(
-        phase = SSEMetricsPhase.CLOSED,
-        ttfbMs = ttfbMs,
-        dnsMs = null,
-        connectMs = connectMs,
-        tlsMs = tlsMs,
-        connectionReused = timings.connectionReused,
-        timestampMs = System.currentTimeMillis().toDouble()
-      )
-    )
+    onMetrics(SSEConnectionMetrics(connectionReused = timings.connectionReused))
   }
 }

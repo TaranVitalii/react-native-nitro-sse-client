@@ -10,9 +10,11 @@ enum SSEClientError: Error {
   case invalidURL
 }
 
-/// Forwards URLSession delegate callbacks to HybridSSEClient. A separate NSObject subclass is
-/// required because URLSessionDataDelegate requires NSObjectProtocol conformance, which the
-/// Nitro-generated HybridSSEClientSpec base class does not provide.
+/// Forwards URLSession delegate callbacks to the HybridSSEClient instance that owns the task.
+/// Assigned per-task (`URLSessionTask.delegate`, available iOS 15+ — this library already
+/// requires RN 0.76+ / the New Architecture, which requires iOS 15.1+) instead of at the session
+/// level, so every instance keeps its own delegate — routed straight back to `self`, no manual
+/// task-ID bookkeeping needed — while still sharing one `URLSession` underneath for pooling.
 private final class SSEStreamDelegate: NSObject, URLSessionDataDelegate {
   weak var client: HybridSSEClient?
 
@@ -39,39 +41,61 @@ private final class SSEStreamDelegate: NSObject, URLSessionDataDelegate {
   }
 }
 
+/// Shared by every HybridSSEClient instance — created once and reused for every connect()/
+/// disconnect() cycle across ALL instances (not just reconnects on the same one), so the
+/// connection pool (and any HTTP/2 session / TLS session tickets) persists no matter which
+/// instance is talking to a given host.
+private enum SharedSession {
+  static var session: URLSession?
+
+  // Lazily created from whichever connect() call comes first, across every HybridSSEClient
+  // instance in the app — later calls' `session` options are silently ignored once this exists,
+  // since recreating it would drop every connection already in the pool.
+  static func get(_ options: SSESessionOptions?) -> URLSession {
+    if let session { return session }
+
+    let config = URLSessionConfiguration.default
+    config.timeoutIntervalForRequest = options?.timeoutSeconds ?? 3600
+    config.httpMaximumConnectionsPerHost = options?.maxConnectionsPerHost.map { Int($0) } ?? 6
+
+    // No session-level delegate — every task gets its own via `task.delegate =` in connect(),
+    // so there's nothing here that needs to route between instances.
+    let newSession = URLSession(configuration: config, delegate: nil, delegateQueue: nil)
+    session = newSession
+    return newSession
+  }
+}
+
 class HybridSSEClient: HybridSSEClientSpec {
   var onMessage: (SSEMessageEvent) -> Void = { _ in }
   var onOpen: () -> Void = { }
   var onError: (String) -> Void = { _ in }
   var onMetrics: (SSEConnectionMetrics) -> Void = { _ in }
 
-  // Created once and reused for every connect()/disconnect() cycle so the underlying
-  // connection pool (and any HTTP/2 session / TLS session tickets) survives reconnects.
-  private let session: URLSession
   private let streamDelegate = SSEStreamDelegate()
 
   private var currentTask: URLSessionDataTask?
-  private var textBuffer = ""
+  // Raw bytes rather than a Swift String: String's range(of:)/+= are Unicode-grapheme-aware and
+  // re-scan/re-copy the whole buffer on every call, too slow to do on every network chunk for a
+  // chatty stream — this buffer is only ever decoded to a String once a full frame is isolated.
+  private var byteBuffer = Data()
+  private static let frameDelimiter = Data([0x0A, 0x0A]) // "\n\n"
   private var connectStartedAt: Date?
   private var firstByteLogged = false
 
   public override init() {
-    let config = URLSessionConfiguration.default
-    config.timeoutIntervalForRequest = 3600
-    config.httpMaximumConnectionsPerHost = 6
-    self.session = URLSession(configuration: config, delegate: streamDelegate, delegateQueue: nil)
     super.init()
     streamDelegate.client = self
   }
 
-  func connect(url: String) throws {
+  func connect(url: String, session: SSESessionOptions?) throws {
     guard let nsUrl = URL(string: url) else { throw SSEClientError.invalidURL }
 
-    // Cancelling here (rather than tearing down `session`) is what lets connection N+1 reuse
-    // the pool built up by connection N — only the task is torn down, never the session.
+    // Cancelling here (rather than tearing down the shared session) is what lets connection N+1
+    // reuse the pool built up by connection N — only the task is torn down, never the session.
     currentTask?.cancel()
 
-    textBuffer = ""
+    byteBuffer.removeAll(keepingCapacity: false)
     firstByteLogged = false
     connectStartedAt = Date()
 
@@ -85,7 +109,8 @@ class HybridSSEClient: HybridSSEClientSpec {
     )
     request.timeoutInterval = 3600
 
-    let task = session.dataTask(with: request)
+    let task = SharedSession.get(session).dataTask(with: request)
+    task.delegate = streamDelegate
     currentTask = task
     task.resume()
   }
@@ -102,21 +127,15 @@ class HybridSSEClient: HybridSSEClientSpec {
   fileprivate func handleData(_ data: Data) {
     if !firstByteLogged, let startedAt = connectStartedAt {
       firstByteLogged = true
+      // Native-only diagnostic — not sent to JS. onMetrics is limited to connectionReused (see
+      // SSEConnectionMetrics), which isn't knowable until the connection closes.
       let ttfbMs = Date().timeIntervalSince(startedAt) * 1000
       NSLog("[Native SSE][iOS] time to first data: %.1fms", ttfbMs)
-      onMetrics(SSEConnectionMetrics(
-        phase: .ttfb,
-        ttfbMs: ttfbMs,
-        dnsMs: nil,
-        connectMs: nil,
-        tlsMs: nil,
-        connectionReused: nil,
-        timestampMs: Date().timeIntervalSince1970 * 1000
-      ))
     }
 
-    guard let chunk = String(data: data, encoding: .utf8) else { return }
-    textBuffer += chunk.replacingOccurrences(of: "\r\n", with: "\n")
+    // Drop bare CR bytes so "\r\n" collapses to "\n" (SSE line endings), without the cost of
+    // decoding to a String just to normalize — same effect, byte-level, once per chunk.
+    byteBuffer.append(data.filter { $0 != 0x0D })
     drainBuffer()
   }
 
@@ -139,32 +158,26 @@ class HybridSSEClient: HybridSSEClientSpec {
       return end.timeIntervalSince(start) * 1000
     }
 
-    let dnsMs = durationMs(txn.domainLookupStartDate, txn.domainLookupEndDate)
     let connectMs = durationMs(txn.connectStartDate, txn.connectEndDate)
     let tlsMs = durationMs(txn.secureConnectionStartDate, txn.secureConnectionEndDate)
     let ttfbMs = durationMs(txn.fetchStartDate, txn.responseStartDate)
 
+    // Full breakdown stays native-only (log line) — only connectionReused crosses the bridge.
     NSLog(
       "[Native SSE][iOS] connection closed reused=%@ connect=%.1fms tls=%.1fms ttfb=%.1fms",
       reused ? "true" : "false", connectMs ?? 0, tlsMs ?? 0, ttfbMs ?? 0
     )
 
-    onMetrics(SSEConnectionMetrics(
-      phase: .closed,
-      ttfbMs: ttfbMs,
-      dnsMs: dnsMs,
-      connectMs: connectMs,
-      tlsMs: tlsMs,
-      connectionReused: reused,
-      timestampMs: Date().timeIntervalSince1970 * 1000
-    ))
+    onMetrics(SSEConnectionMetrics(connectionReused: reused))
   }
 
   private func drainBuffer() {
-    while let range = textBuffer.range(of: "\n\n") {
-      let rawEvent = String(textBuffer[textBuffer.startIndex..<range.lowerBound])
-      textBuffer.removeSubrange(textBuffer.startIndex..<range.upperBound)
-      parseAndEmit(rawEvent)
+    while let range = byteBuffer.range(of: Self.frameDelimiter) {
+      let frameData = byteBuffer.subdata(in: byteBuffer.startIndex..<range.lowerBound)
+      byteBuffer.removeSubrange(byteBuffer.startIndex..<range.upperBound)
+      if let rawEvent = String(data: frameData, encoding: .utf8) {
+        parseAndEmit(rawEvent)
+      }
     }
   }
 

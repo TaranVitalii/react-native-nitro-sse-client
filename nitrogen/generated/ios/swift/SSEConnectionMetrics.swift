@@ -18,107 +18,12 @@ public extension SSEConnectionMetrics {
   /**
    * Create a new instance of `SSEConnectionMetrics`.
    */
-  init(phase: SSEMetricsPhase, ttfbMs: Double?, dnsMs: Double?, connectMs: Double?, tlsMs: Double?, connectionReused: Bool?, timestampMs: Double) {
-    self.init(phase, { () -> bridge.std__optional_double_ in
-      if let __unwrappedValue = ttfbMs {
-        return bridge.create_std__optional_double_(__unwrappedValue)
-      } else {
-        return .init()
-      }
-    }(), { () -> bridge.std__optional_double_ in
-      if let __unwrappedValue = dnsMs {
-        return bridge.create_std__optional_double_(__unwrappedValue)
-      } else {
-        return .init()
-      }
-    }(), { () -> bridge.std__optional_double_ in
-      if let __unwrappedValue = connectMs {
-        return bridge.create_std__optional_double_(__unwrappedValue)
-      } else {
-        return .init()
-      }
-    }(), { () -> bridge.std__optional_double_ in
-      if let __unwrappedValue = tlsMs {
-        return bridge.create_std__optional_double_(__unwrappedValue)
-      } else {
-        return .init()
-      }
-    }(), { () -> bridge.std__optional_bool_ in
-      if let __unwrappedValue = connectionReused {
-        return bridge.create_std__optional_bool_(__unwrappedValue)
-      } else {
-        return .init()
-      }
-    }(), timestampMs)
+  init(connectionReused: Bool) {
+    self.init(connectionReused)
   }
 
   @inline(__always)
-  var phase: SSEMetricsPhase {
-    return self.__phase
-  }
-  
-  @inline(__always)
-  var ttfbMs: Double? {
-    return { () -> Double? in
-      if bridge.has_value_std__optional_double_(self.__ttfbMs) {
-        let __unwrapped = bridge.get_std__optional_double_(self.__ttfbMs)
-        return __unwrapped
-      } else {
-        return nil
-      }
-    }()
-  }
-  
-  @inline(__always)
-  var dnsMs: Double? {
-    return { () -> Double? in
-      if bridge.has_value_std__optional_double_(self.__dnsMs) {
-        let __unwrapped = bridge.get_std__optional_double_(self.__dnsMs)
-        return __unwrapped
-      } else {
-        return nil
-      }
-    }()
-  }
-  
-  @inline(__always)
-  var connectMs: Double? {
-    return { () -> Double? in
-      if bridge.has_value_std__optional_double_(self.__connectMs) {
-        let __unwrapped = bridge.get_std__optional_double_(self.__connectMs)
-        return __unwrapped
-      } else {
-        return nil
-      }
-    }()
-  }
-  
-  @inline(__always)
-  var tlsMs: Double? {
-    return { () -> Double? in
-      if bridge.has_value_std__optional_double_(self.__tlsMs) {
-        let __unwrapped = bridge.get_std__optional_double_(self.__tlsMs)
-        return __unwrapped
-      } else {
-        return nil
-      }
-    }()
-  }
-  
-  @inline(__always)
-  var connectionReused: Bool? {
-    return { () -> Bool? in
-      if bridge.has_value_std__optional_bool_(self.__connectionReused) {
-        let __unwrapped = bridge.get_std__optional_bool_(self.__connectionReused)
-        return __unwrapped
-      } else {
-        return nil
-      }
-    }()
-  }
-  
-  @inline(__always)
-  var timestampMs: Double {
-    return self.__timestampMs
+  var connectionReused: Bool {
+    return self.__connectionReused
   }
 }

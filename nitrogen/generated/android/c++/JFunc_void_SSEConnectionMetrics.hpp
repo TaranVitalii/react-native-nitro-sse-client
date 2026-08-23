@@ -14,9 +14,6 @@
 #include <functional>
 #include <NitroModules/JNICallable.hpp>
 #include "JSSEConnectionMetrics.hpp"
-#include "SSEMetricsPhase.hpp"
-#include "JSSEMetricsPhase.hpp"
-#include <optional>
 
 namespace margelo::nitro::nitrosseclient {
 

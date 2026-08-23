@@ -17,11 +17,15 @@
 namespace margelo::nitro::nitrosseclient { struct SSEMessageEvent; }
 // Forward declaration of `SSEConnectionMetrics` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
+// Forward declaration of `SSESessionOptions` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 
 #include "SSEMessageEvent.hpp"
 #include <functional>
 #include <string>
 #include "SSEConnectionMetrics.hpp"
+#include "SSESessionOptions.hpp"
+#include <optional>
 
 namespace margelo::nitro::nitrosseclient {
 
@@ -61,7 +65,7 @@ namespace margelo::nitro::nitrosseclient {
 
     public:
       // Methods
-      virtual void connect(const std::string& url) = 0;
+      virtual void connect(const std::string& url, const std::optional<SSESessionOptions>& session) = 0;
       virtual void disconnect() = 0;
 
     protected:

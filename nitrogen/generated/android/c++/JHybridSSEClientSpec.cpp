@@ -11,8 +11,8 @@
 namespace margelo::nitro::nitrosseclient { struct SSEMessageEvent; }
 // Forward declaration of `SSEConnectionMetrics` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
-// Forward declaration of `SSEMetricsPhase` to properly resolve imports.
-namespace margelo::nitro::nitrosseclient { enum class SSEMetricsPhase; }
+// Forward declaration of `SSESessionOptions` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 
 #include "SSEMessageEvent.hpp"
 #include <functional>
@@ -26,8 +26,8 @@ namespace margelo::nitro::nitrosseclient { enum class SSEMetricsPhase; }
 #include "SSEConnectionMetrics.hpp"
 #include "JFunc_void_SSEConnectionMetrics.hpp"
 #include "JSSEConnectionMetrics.hpp"
-#include "SSEMetricsPhase.hpp"
-#include "JSSEMetricsPhase.hpp"
+#include "SSESessionOptions.hpp"
+#include "JSSESessionOptions.hpp"
 
 namespace margelo::nitro::nitrosseclient {
 
@@ -129,9 +129,9 @@ namespace margelo::nitro::nitrosseclient {
   }
 
   // Methods
-  void JHybridSSEClientSpec::connect(const std::string& url) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* url */)>("connect");
-    method(_javaPart, jni::make_jstring(url));
+  void JHybridSSEClientSpec::connect(const std::string& url, const std::optional<SSESessionOptions>& session) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* url */, jni::alias_ref<JSSESessionOptions> /* session */)>("connect");
+    method(_javaPart, jni::make_jstring(url), session.has_value() ? JSSESessionOptions::fromCpp(session.value()) : nullptr);
   }
   void JHybridSSEClientSpec::disconnect() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void()>("disconnect");

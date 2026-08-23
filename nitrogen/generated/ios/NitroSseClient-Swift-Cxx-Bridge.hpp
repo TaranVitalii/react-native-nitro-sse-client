@@ -14,8 +14,8 @@ namespace margelo::nitro::nitrosseclient { class HybridSSEClientSpec; }
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
 // Forward declaration of `SSEMessageEvent` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEMessageEvent; }
-// Forward declaration of `SSEMetricsPhase` to properly resolve imports.
-namespace margelo::nitro::nitrosseclient { enum class SSEMetricsPhase; }
+// Forward declaration of `SSESessionOptions` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 
 // Forward declarations of Swift defined types
 // Forward declaration of `HybridSSEClientSpec_cxx` to properly resolve imports.
@@ -25,7 +25,7 @@ namespace NitroSseClient { class HybridSSEClientSpec_cxx; }
 #include "HybridSSEClientSpec.hpp"
 #include "SSEConnectionMetrics.hpp"
 #include "SSEMessageEvent.hpp"
-#include "SSEMetricsPhase.hpp"
+#include "SSESessionOptions.hpp"
 #include <NitroModules/Result.hpp>
 #include <exception>
 #include <functional>
@@ -39,6 +39,36 @@ namespace NitroSseClient { class HybridSSEClientSpec_cxx; }
  */
 namespace margelo::nitro::nitrosseclient::bridge::swift {
 
+  // pragma MARK: std::optional<double>
+  /**
+   * Specialized version of `std::optional<double>`.
+   */
+  using std__optional_double_ = std::optional<double>;
+  inline std::optional<double> create_std__optional_double_(const double& value) noexcept {
+    return std::optional<double>(value);
+  }
+  inline bool has_value_std__optional_double_(const std::optional<double>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline double get_std__optional_double_(const std::optional<double>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::optional<SSESessionOptions>
+  /**
+   * Specialized version of `std::optional<SSESessionOptions>`.
+   */
+  using std__optional_SSESessionOptions_ = std::optional<SSESessionOptions>;
+  inline std::optional<SSESessionOptions> create_std__optional_SSESessionOptions_(const SSESessionOptions& value) noexcept {
+    return std::optional<SSESessionOptions>(value);
+  }
+  inline bool has_value_std__optional_SSESessionOptions_(const std::optional<SSESessionOptions>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline SSESessionOptions get_std__optional_SSESessionOptions_(const std::optional<SSESessionOptions>& optional) noexcept {
+    return optional.value();
+  }
+  
   // pragma MARK: std::optional<std::string>
   /**
    * Specialized version of `std::optional<std::string>`.
@@ -118,36 +148,6 @@ namespace margelo::nitro::nitrosseclient::bridge::swift {
   Func_void_std__string create_Func_void_std__string(void* NON_NULL swiftClosureWrapper) noexcept;
   inline Func_void_std__string_Wrapper wrap_Func_void_std__string(Func_void_std__string value) noexcept {
     return Func_void_std__string_Wrapper(std::move(value));
-  }
-  
-  // pragma MARK: std::optional<double>
-  /**
-   * Specialized version of `std::optional<double>`.
-   */
-  using std__optional_double_ = std::optional<double>;
-  inline std::optional<double> create_std__optional_double_(const double& value) noexcept {
-    return std::optional<double>(value);
-  }
-  inline bool has_value_std__optional_double_(const std::optional<double>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline double get_std__optional_double_(const std::optional<double>& optional) noexcept {
-    return optional.value();
-  }
-  
-  // pragma MARK: std::optional<bool>
-  /**
-   * Specialized version of `std::optional<bool>`.
-   */
-  using std__optional_bool_ = std::optional<bool>;
-  inline std::optional<bool> create_std__optional_bool_(const bool& value) noexcept {
-    return std::optional<bool>(value);
-  }
-  inline bool has_value_std__optional_bool_(const std::optional<bool>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline bool get_std__optional_bool_(const std::optional<bool>& optional) noexcept {
-    return optional.value();
   }
   
   // pragma MARK: std::function<void(const SSEConnectionMetrics& /* metrics */)>
