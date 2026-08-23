@@ -2,16 +2,29 @@ import { NitroModules } from 'react-native-nitro-modules'
 import type {
   SSEClient as SSEClientSpec,
   SSEConnectionMetrics,
-  SSEMessageEvent,
+  SSEMessageEvent as NativeSSEMessageEvent,
   SSESessionOptions,
 } from './specs/SSEClient.nitro'
 
 export type {
-  SSEMessageEvent,
   SSEConnectionMetrics,
   SSESessionOptions,
   SSEClient as SSEClientSpec,
 } from './specs/SSEClient.nitro'
+
+// Resolved-`event` variant of the native SSEMessageEvent (which leaves `event` undefined for a
+// frame with no `event:` field) — normalized to 'message' here to match how browser EventSource,
+// and react-native-sse-bridge-client, both treat a typeless frame.
+export interface SSEMessageEvent {
+  id?: string
+  event: string
+  data: string
+  timestampMs: number
+}
+
+// SSE frames with no `event:` field are filed under this key, matching how browser EventSource
+// (and react-native-sse-bridge-client) treats them as type 'message'.
+const DEFAULT_MESSAGE_TYPE = 'message'
 
 export interface SSEConnectOptions {
   headers?: Record<string, string>
@@ -58,7 +71,9 @@ export class SSEStream {
     NitroModules.createHybridObject<SSEClientSpec>('SSEClient')
 
   set onMessage(callback: (event: SSEMessageEvent) => void) {
-    this.native.onMessage = callback
+    this.native.onMessage = (event: NativeSSEMessageEvent) => {
+      callback({ ...event, event: event.event ?? DEFAULT_MESSAGE_TYPE })
+    }
   }
 
   set onOpen(callback: () => void) {
