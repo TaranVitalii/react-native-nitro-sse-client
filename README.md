@@ -154,24 +154,11 @@ A full per-phase timing breakdown (DNS/connect/TLS/TTFB) is still logged nativel
 
 Reconnecting is entirely manual: call `connect()` again (optionally after `disconnect()`) whenever you want to. There is no built-in auto-reconnect or backoff on top of the server's `retry:` field — this is intentional for v1, so nothing sits between you and the exact moment a reconnect happens. If you need resilience against dropped connections, drive `connect()`/`disconnect()` from your own retry logic (e.g. on `onError`).
 
-## Roadmap
-
-- Custom method/body on `connect()` (headers are already supported)
-- `Last-Event-ID` resumption
-- Optional built-in auto-reconnect with backoff, honoring the server's `retry:` field
-- Per-event-type filtering (subscribe to a specific SSE `event:` type, like `react-native-sse-bridge-client`'s `addEventListener`)
-
-Contributions toward any of these are welcome — see [Contributing](#contributing).
-
 ## How it's built
 
 - **iOS**: one `URLSession` (not `.shared`), lazily created on the first `connect()` call across every `SSEStream` and reused for the app's lifetime, so the connection pool persists across reconnects and across instances. Each `SSEStream`'s `HybridSSEClient` keeps its own delegate object, assigned per-task via `URLSessionTask.delegate` (iOS 15+) — so multiple streams can be in flight at once, each routed to its own delegate, while still sharing one session/connection pool. SSE framing is parsed by hand, byte-level, from the streamed response body — no third-party SSE library. Handshake/TLS timings come from `URLSessionTaskMetrics`.
 - **Android**: one `OkHttpClient`, likewise lazily created on the first `connect()` and shared across every `HybridSSEClient` instance/reconnect. Requests go through `client.newCall(request).enqueue(...)` with the response body read and parsed manually — **not** through `okhttp-sse`'s `EventSource`, because `RealEventSource.connect()` internally does `client.newBuilder().eventListener(...)`, which silently replaces any `eventListenerFactory` you set on the client, making handshake timing impossible to observe through it. OkHttp already creates one `EventListener` per call (not per client), so handshake/TLS timings are correctly attributed per stream even with a shared client; a request tag correlates each call back to its timing record.
 - **Multiplexing**: `NitroModules.createHybridObject<SSEClient>('SSEClient')` gives every `SSEStream` its own native instance — unlike classic Native Modules, no `streamId`/event-filtering scheme is needed to keep multiple streams' events apart.
-
-## Contributing
-
-Pull requests are welcome. For major changes, please open an issue first to discuss what you'd like to change. See the [`example/`](./example) app to run and test the library in isolation.
 
 ## License
 
