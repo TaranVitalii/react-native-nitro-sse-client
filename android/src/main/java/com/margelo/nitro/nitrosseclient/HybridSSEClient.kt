@@ -125,6 +125,17 @@ class HybridSSEClient : HybridSSEClientSpec() {
   private var firstByteLogged = false
 
   override fun connect(url: String, headers: Map<String, String>?, session: SSESessionOptions?) {
+    // Validated before touching any existing connection, so a bad URL on a reconnect attempt
+    // doesn't tear down a connection that was working fine — and reported through onError like
+    // any other connection failure, rather than left to crash as an uncaught IllegalArgumentException.
+    val requestBuilder = try {
+      Request.Builder().url(url)
+    } catch (e: IllegalArgumentException) {
+      Log.e(LOG_TAG, "invalid URL: $url", e)
+      onError("Invalid URL: $url")
+      return
+    }
+
     currentCall?.let { emitCloseMetrics(it) }
     currentCall?.cancel()
 
@@ -132,8 +143,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
     connectStartedAt = System.nanoTime()
     val generation = SharedClient.nextGeneration()
 
-    val requestBuilder = Request.Builder()
-      .url(url)
+    requestBuilder
       .header("Accept", "text/event-stream")
       // Some SSE providers (e.g. Wikimedia) reject requests carrying OkHttp's generic default
       // User-Agent with 403; identify this library instead of leaving it unset.
@@ -151,6 +161,14 @@ class HybridSSEClient : HybridSSEClientSpec() {
 
     call.enqueue(object : Callback {
       override fun onResponse(call: Call, response: Response) {
+        // A superseding connect() may have already cancelled this call and started a new one
+        // before this callback for the OLD call's response arrives — without this check, a late
+        // response like this would fire onOpen()/onMessage() for a connection that's no longer
+        // the active one.
+        if (call !== currentCall) {
+          response.close()
+          return
+        }
         onOpen()
         try {
           val source = response.body?.source()
@@ -161,6 +179,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
           val eventBuffer = StringBuilder()
           var loggedFirstByte = false
           while (!source.exhausted()) {
+            if (call !== currentCall) break
             if (!loggedFirstByte) {
               maybeLogFirstByte()
               loggedFirstByte = true
@@ -186,6 +205,9 @@ class HybridSSEClient : HybridSSEClientSpec() {
       override fun onFailure(call: Call, e: IOException) {
         emitCloseMetrics(call)
         if (call.isCanceled()) return
+        // A genuine (non-cancellation) failure on a call a newer connect() has already
+        // superseded shouldn't surface as "the current connection failed" — it isn't, anymore.
+        if (call !== currentCall) return
         Log.e(LOG_TAG, "connect failed: ${e.message}", e)
         onError(e.message ?: e.toString())
       }
@@ -196,6 +218,14 @@ class HybridSSEClient : HybridSSEClientSpec() {
     currentCall?.let { emitCloseMetrics(it) }
     currentCall?.cancel()
     currentCall = null
+  }
+
+  // Called by Nitro when the JS side releases this object (GC), or explicitly via
+  // nativeObject.dispose() — without this, an abandoned SSEStream that never called
+  // disconnect()/destroy() would leave its call running against the shared client forever.
+  override fun dispose() {
+    super.dispose()
+    currentCall?.cancel()
   }
 
   // Native-only diagnostic — not sent to JS. onMetrics is limited to connectionReused (see

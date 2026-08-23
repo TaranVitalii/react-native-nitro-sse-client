@@ -6,10 +6,6 @@
 import Foundation
 import NitroModules
 
-enum SSEClientError: Error {
-  case invalidURL
-}
-
 /// Forwards URLSession delegate callbacks to the HybridSSEClient instance that owns the task.
 /// Assigned per-task (`URLSessionTask.delegate`, available iOS 15+ — this library already
 /// requires RN 0.76+ / the New Architecture, which requires iOS 15.1+) instead of at the session
@@ -24,19 +20,22 @@ private final class SSEStreamDelegate: NSObject, URLSessionDataDelegate {
     didReceive response: URLResponse,
     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
   ) {
-    client?.handleResponse()
+    client?.handleResponse(task: dataTask)
     completionHandler(.allow)
   }
 
   func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-    client?.handleData(data)
+    client?.handleData(data, task: dataTask)
   }
 
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-    client?.handleCompletion(error: error)
+    client?.handleCompletion(error: error, task: task)
   }
 
   func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+    // Deliberately NOT gated by task identity — this is expected to fire for a task that a
+    // newer connect() has already superseded (that's how a superseded connection's close
+    // metrics get reported at all), unlike the callbacks above.
     client?.handleMetrics(metrics)
   }
 }
@@ -89,7 +88,13 @@ class HybridSSEClient: HybridSSEClientSpec {
   }
 
   func connect(url: String, headers: [String: String]?, session: SSESessionOptions?) throws {
-    guard let nsUrl = URL(string: url) else { throw SSEClientError.invalidURL }
+    // Validated before touching any existing connection, so a bad URL on a reconnect attempt
+    // doesn't tear down a connection that was working fine — and reported through onError like
+    // any other connection failure, rather than left silent or thrown as an uncaught JS exception.
+    guard let nsUrl = URL(string: url) else {
+      onError("Invalid URL: \(url)")
+      return
+    }
 
     // Cancelling here (rather than tearing down the shared session) is what lets connection N+1
     // reuse the pool built up by connection N — only the task is torn down, never the session.
@@ -133,11 +138,29 @@ class HybridSSEClient: HybridSSEClientSpec {
     currentTask = nil
   }
 
-  fileprivate func handleResponse() {
+  /// Called by Nitro when the JS side releases this object (GC), or explicitly via
+  /// `nativeObject.dispose()` — without this, an abandoned SSEStream that never called
+  /// disconnect()/destroy() would leave its task running against the shared session forever.
+  /// A `HybridObject` protocol requirement (default no-op via extension), not a base-class
+  /// method — so this is implemented directly, not with `override`.
+  func dispose() {
+    currentTask?.cancel()
+  }
+
+  fileprivate func handleResponse(task: URLSessionTask) {
+    // A superseding connect() may have already cancelled this task and started a new one before
+    // this callback for the OLD task's response arrives — without this check, a late response
+    // like this would fire onOpen() for a connection that's no longer the active one.
+    guard task === currentTask else { return }
     onOpen()
   }
 
-  fileprivate func handleData(_ data: Data) {
+  fileprivate func handleData(_ data: Data, task: URLSessionTask) {
+    // Same race as handleResponse(): reject bytes from a task that's no longer current, so a
+    // superseded connection's late-arriving data can't get appended into the new connection's
+    // (already-reset) byteBuffer.
+    guard task === currentTask else { return }
+
     if !firstByteLogged, let startedAt = connectStartedAt {
       firstByteLogged = true
       // Native-only diagnostic — not sent to JS. onMetrics is limited to connectionReused (see
@@ -152,9 +175,12 @@ class HybridSSEClient: HybridSSEClientSpec {
     drainBuffer()
   }
 
-  fileprivate func handleCompletion(error: Error?) {
+  fileprivate func handleCompletion(error: Error?, task: URLSessionTask) {
     guard let error = error as NSError? else { return }
     if error.code == NSURLErrorCancelled { return }
+    // A genuine (non-cancellation) failure on a task a newer connect() has already superseded
+    // shouldn't surface as "the current connection failed" — it isn't, anymore.
+    guard task === currentTask else { return }
     NSLog("[Native SSE][iOS] error: %@", error.localizedDescription)
     onError(error.localizedDescription)
   }
