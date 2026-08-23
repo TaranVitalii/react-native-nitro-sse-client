@@ -199,9 +199,24 @@ open class HybridSSEClientSpec_cxx {
 
   // Methods
   @inline(__always)
-  public final func connect(url: std.string, session: bridge.std__optional_SSESessionOptions_) -> bridge.Result_void_ {
+  public final func connect(url: std.string, headers: bridge.std__optional_std__unordered_map_std__string__std__string__, session: bridge.std__optional_SSESessionOptions_) -> bridge.Result_void_ {
     do {
-      try self.__implementation.connect(url: String(url), session: session.value)
+      try self.__implementation.connect(url: String(url), headers: { () -> Dictionary<String, String>? in
+        if bridge.has_value_std__optional_std__unordered_map_std__string__std__string__(headers) {
+          let __unwrapped = bridge.get_std__optional_std__unordered_map_std__string__std__string__(headers)
+          return { () -> Dictionary<String, String> in
+            var __dictionary = Dictionary<String, String>(minimumCapacity: __unwrapped.size())
+            let __keys = bridge.get_std__unordered_map_std__string__std__string__keys(__unwrapped)
+            for __key in __keys {
+              let __value = bridge.get_std__unordered_map_std__string__std__string__value(__unwrapped, __key)
+              __dictionary[String(__key)] = String(__value)
+            }
+            return __dictionary
+          }()
+        } else {
+          return nil
+        }
+      }(), session: session.value)
       return bridge.create_Result_void_()
     } catch (let __error) {
       let __exceptionPtr = __error.toCpp()

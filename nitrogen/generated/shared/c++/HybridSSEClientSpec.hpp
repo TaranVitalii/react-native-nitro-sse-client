@@ -24,8 +24,9 @@ namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 #include <functional>
 #include <string>
 #include "SSEConnectionMetrics.hpp"
-#include "SSESessionOptions.hpp"
+#include <unordered_map>
 #include <optional>
+#include "SSESessionOptions.hpp"
 
 namespace margelo::nitro::nitrosseclient {
 
@@ -65,7 +66,7 @@ namespace margelo::nitro::nitrosseclient {
 
     public:
       // Methods
-      virtual void connect(const std::string& url, const std::optional<SSESessionOptions>& session) = 0;
+      virtual void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session) = 0;
       virtual void disconnect() = 0;
 
     protected:

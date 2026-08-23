@@ -61,7 +61,7 @@ namespace margelo::nitro::nitrosseclient {
 
   public:
     // Methods
-    void connect(const std::string& url, const std::optional<SSESessionOptions>& session) override;
+    void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session) override;
     void disconnect() override;
 
   private:

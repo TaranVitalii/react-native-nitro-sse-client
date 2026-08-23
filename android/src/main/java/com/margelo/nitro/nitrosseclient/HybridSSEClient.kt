@@ -124,7 +124,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
   private var connectStartedAt: Long? = null
   private var firstByteLogged = false
 
-  override fun connect(url: String, session: SSESessionOptions?) {
+  override fun connect(url: String, headers: Map<String, String>?, session: SSESessionOptions?) {
     currentCall?.let { emitCloseMetrics(it) }
     currentCall?.cancel()
 
@@ -132,14 +132,19 @@ class HybridSSEClient : HybridSSEClientSpec() {
     connectStartedAt = System.nanoTime()
     val generation = SharedClient.nextGeneration()
 
-    val request = Request.Builder()
+    val requestBuilder = Request.Builder()
       .url(url)
       .header("Accept", "text/event-stream")
       // Some SSE providers (e.g. Wikimedia) reject requests carrying OkHttp's generic default
       // User-Agent with 403; identify this library instead of leaving it unset.
       .header("User-Agent", "react-native-nitro-sse-client (+https://github.com/TaranVitalii/react-native-nitro-sse-client)")
       .tag(ConnectionAttempt::class.java, ConnectionAttempt(generation))
-      .build()
+
+    // Applied after the defaults above, so a caller can override Accept/User-Agent too if they
+    // need to — e.g. Authorization for a protected endpoint.
+    headers?.forEach { (key, value) -> requestBuilder.header(key, value) }
+
+    val request = requestBuilder.build()
 
     val call = SharedClient.get(session).newCall(request)
     currentCall = call

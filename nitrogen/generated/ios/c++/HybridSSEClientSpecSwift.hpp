@@ -24,6 +24,7 @@ namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 #include <string>
 #include <optional>
 #include "SSEConnectionMetrics.hpp"
+#include <unordered_map>
 #include "SSESessionOptions.hpp"
 
 #include "NitroSseClient-Swift-Cxx-Umbrella.hpp"
@@ -103,8 +104,8 @@ namespace margelo::nitro::nitrosseclient {
 
   public:
     // Methods
-    inline void connect(const std::string& url, const std::optional<SSESessionOptions>& session) override {
-      auto __result = _swiftPart.connect(url, session);
+    inline void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session) override {
+      auto __result = _swiftPart.connect(url, headers, session);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }

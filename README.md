@@ -44,7 +44,9 @@ stream.onError = message => console.log('error:', message)
 // fires once, when the connection closes (disconnect(), a superseding connect(), or a failure)
 stream.onMetrics = metrics => console.log('connection reused:', metrics.connectionReused)
 
-stream.connect('https://your-server.example.com/events')
+stream.connect('https://your-server.example.com/events', {
+  headers: { Authorization: 'Bearer …' },
+})
 
 // later
 stream.disconnect()
@@ -68,7 +70,7 @@ Sets the shared session config (timeout, max connections per host) once, up fron
 
 | Method | Description |
 | --- | --- |
-| `connect(url: string, options?: SSEConnectOptions): void` | Opens a connection to `url`. Calling this again on the same stream cancels the previous connection first (its close metrics still fire). |
+| `connect(url: string, options?: SSEConnectOptions): void` | Opens a connection to `url`. Calling this again on the same stream cancels the previous connection first (its close metrics still fire). Headers — including `Authorization` — are entirely JS-configured; nothing is hardcoded natively beyond a default `Accept`/`User-Agent`, both of which `options.headers` can override too. |
 | `disconnect(): void` | Closes the current connection, if any. |
 | `destroy(): void` | Alias for `disconnect()` — call this when you're done with the stream (e.g. on unmount). |
 
@@ -98,6 +100,7 @@ interface SSEConnectionMetrics {
 }
 
 interface SSEConnectOptions {
+  headers?: Record<string, string>
   session?: SSESessionOptions
 }
 
@@ -153,7 +156,7 @@ Reconnecting is entirely manual: call `connect()` again (optionally after `disco
 
 ## Roadmap
 
-- Custom headers / method / body on `connect()`
+- Custom method/body on `connect()` (headers are already supported)
 - `Last-Event-ID` resumption
 - Optional built-in auto-reconnect with backoff, honoring the server's `retry:` field
 - Per-event-type filtering (subscribe to a specific SSE `event:` type, like `react-native-sse-bridge-client`'s `addEventListener`)

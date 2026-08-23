@@ -28,6 +28,7 @@ namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 
 // C++ helpers for Swift
 #include "NitroSseClient-Swift-Cxx-Bridge.hpp"

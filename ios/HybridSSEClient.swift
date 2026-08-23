@@ -88,7 +88,7 @@ class HybridSSEClient: HybridSSEClientSpec {
     streamDelegate.client = self
   }
 
-  func connect(url: String, session: SSESessionOptions?) throws {
+  func connect(url: String, headers: [String: String]?, session: SSESessionOptions?) throws {
     guard let nsUrl = URL(string: url) else { throw SSEClientError.invalidURL }
 
     // Cancelling here (rather than tearing down the shared session) is what lets connection N+1
@@ -107,9 +107,22 @@ class HybridSSEClient: HybridSSEClientSpec {
       "react-native-nitro-sse-client (+https://github.com/TaranVitalii/react-native-nitro-sse-client)",
       forHTTPHeaderField: "User-Agent"
     )
-    request.timeoutInterval = 3600
+    // Applied after the defaults above, so a caller can override Accept/User-Agent too if they
+    // need to — e.g. Authorization for a protected endpoint.
+    if let headers {
+      for (key, value) in headers {
+        request.setValue(value, forHTTPHeaderField: key)
+      }
+    }
 
-    let task = SharedSession.get(session).dataTask(with: request)
+    let sharedSession = SharedSession.get(session)
+    // URLSessionConfiguration.timeoutIntervalForRequest is unreliable once a request carries its
+    // own timeoutInterval (which URLRequest always does, defaulting to 60s) — the request-level
+    // value wins. Reading it back off the session's own configuration, rather than hardcoding a
+    // separate constant here, keeps this in sync with whatever configureSSESession() set.
+    request.timeoutInterval = sharedSession.configuration.timeoutIntervalForRequest
+
+    let task = sharedSession.dataTask(with: request)
     task.delegate = streamDelegate
     currentTask = task
     task.resume()

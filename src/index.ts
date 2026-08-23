@@ -14,6 +14,7 @@ export type {
 } from './specs/SSEClient.nitro'
 
 export interface SSEConnectOptions {
+  headers?: Record<string, string>
   /** Only takes effect on the first connect() made across all streams — see configureSSESession(). */
   session?: SSESessionOptions
 }
@@ -89,7 +90,7 @@ export class SSEStream {
       )
     }
     sharedSessionCreated = true
-    this.native.connect(url, session)
+    this.native.connect(url, options?.headers, session)
   }
 
   disconnect(): void {

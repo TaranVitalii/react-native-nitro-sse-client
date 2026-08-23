@@ -26,6 +26,7 @@ namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 #include "SSEConnectionMetrics.hpp"
 #include "JFunc_void_SSEConnectionMetrics.hpp"
 #include "JSSEConnectionMetrics.hpp"
+#include <unordered_map>
 #include "SSESessionOptions.hpp"
 #include "JSSESessionOptions.hpp"
 
@@ -129,9 +130,15 @@ namespace margelo::nitro::nitrosseclient {
   }
 
   // Methods
-  void JHybridSSEClientSpec::connect(const std::string& url, const std::optional<SSESessionOptions>& session) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* url */, jni::alias_ref<JSSESessionOptions> /* session */)>("connect");
-    method(_javaPart, jni::make_jstring(url), session.has_value() ? JSSESessionOptions::fromCpp(session.value()) : nullptr);
+  void JHybridSSEClientSpec::connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* url */, jni::alias_ref<jni::JMap<jni::JString, jni::JString>> /* headers */, jni::alias_ref<JSSESessionOptions> /* session */)>("connect");
+    method(_javaPart, jni::make_jstring(url), headers.has_value() ? [&]() -> jni::local_ref<jni::JMap<jni::JString, jni::JString>> {
+      auto __map = jni::JHashMap<jni::JString, jni::JString>::create(headers.value().size());
+      for (const auto& __entry : headers.value()) {
+        __map->put(jni::make_jstring(__entry.first), jni::make_jstring(__entry.second));
+      }
+      return __map;
+    }() : nullptr, session.has_value() ? JSSESessionOptions::fromCpp(session.value()) : nullptr);
   }
   void JHybridSSEClientSpec::disconnect() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void()>("disconnect");
