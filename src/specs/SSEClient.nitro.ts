@@ -39,7 +39,11 @@ export interface SSESessionOptions {
 
 export interface SSEClient
   extends HybridObject<{ ios: 'swift'; android: 'kotlin' }> {
-  connect(url: string, headers?: Record<string, string>, session?: SSESessionOptions): void
+  connect(
+    url: string,
+    headers?: Record<string, string>,
+    session?: SSESessionOptions
+  ): void
   disconnect(): void
   onMessage: (event: SSEMessageEvent) => void
   onOpen: () => void
