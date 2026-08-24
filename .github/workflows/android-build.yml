@@ -14,7 +14,7 @@ on:
       - 'nitrogen/generated/android/**'
       - 'cpp/**'
       - 'android/**'
-      - '**/bun.lock'
+      - '**/package-lock.json'
       - '**/react-native.config.js'
       - '**/nitro.json'
   # No path filter here (unlike the push trigger above): this check is required by branch
@@ -33,10 +33,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
 
-      - name: Install dependencies (bun)
-        run: bun install
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # example/ is a standalone package (its own package-lock.json, own node_modules) — it isn't
+      # an npm workspace of the root, and is wired to this library via react-native.config.js's
+      # manual `dependencies` entry rather than a package.json dependency, so installing at the
+      # root alone never populates it.
+      - name: Install example dependencies
+        working-directory: example
+        run: npm ci
 
       - name: Setup JDK 17
         uses: actions/setup-java@v5
