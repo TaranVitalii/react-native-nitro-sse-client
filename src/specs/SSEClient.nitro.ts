@@ -37,16 +37,61 @@ export interface SSESessionOptions {
   maxConnectionsPerHost?: number
 }
 
+/**
+ * 'http': the server responded, but with a non-2xx status — `statusCode` and `message` (the
+ * response body, if any) are populated.
+ * 'timeout': the request's own timeout (SSESessionOptions.timeoutSeconds) elapsed with no
+ * response.
+ * 'network': a transport-level failure (DNS, connection refused, TLS, dropped connection, etc.)
+ * — `message` is the OS's own error description.
+ * 'exception': the call couldn't even be attempted (e.g. an invalid URL).
+ */
+export type SSEErrorType = 'http' | 'network' | 'timeout' | 'exception'
+
+export interface SSEError {
+  message: string
+  type: SSEErrorType
+  /** Only set when type is 'http'. */
+  statusCode?: number
+}
+
+/**
+ * Governs automatic reconnection after a connection ends for any reason (error, or the server
+ * closing the stream) other than an explicit disconnect(). Mirrors the browser EventSource /
+ * react-native-sse model: reconnect is on by default, at a flat interval the server can override
+ * per-stream via an SSE `retry:` field (no exponential backoff).
+ */
+export interface SSEReconnectOptions {
+  /** Default true. */
+  enabled?: boolean
+  /**
+   * Delay before the first/next reconnect attempt, in ms. Default 3000. A `retry:` field in the
+   * stream overrides this for that stream's subsequent reconnects (until connect() is called
+   * again explicitly, which resets it back to this value).
+   */
+  intervalMs?: number
+  /**
+   * Stop reconnecting after this many consecutive failed attempts. Default undefined (retry
+   * forever). Resets to 0 after any successful onOpen.
+   */
+  maxAttempts?: number
+}
+
 export interface SSEClient
   extends HybridObject<{ ios: 'swift'; android: 'kotlin' }> {
   connect(
     url: string,
     headers?: Record<string, string>,
-    session?: SSESessionOptions
+    session?: SSESessionOptions,
+    reconnect?: SSEReconnectOptions
   ): void
   disconnect(): void
   onMessage: (event: SSEMessageEvent) => void
   onOpen: () => void
-  onError: (message: string) => void
+  onError: (error: SSEError) => void
+  /** Fires whenever the connection ends, for any reason — including a normal server-side close,
+   * an error (after onError), or an explicit disconnect(). Does not fire again for connections
+   * superseded by a newer connect() before they ever opened. */
+  onClose: () => void
   onMetrics: (metrics: SSEConnectionMetrics) => void
 }

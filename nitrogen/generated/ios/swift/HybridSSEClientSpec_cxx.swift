@@ -159,20 +159,39 @@ open class HybridSSEClientSpec_cxx {
     }
   }
   
-  public final var onError: bridge.Func_void_std__string {
+  public final var onError: bridge.Func_void_SSEError {
     @inline(__always)
     get {
-      return { () -> bridge.Func_void_std__string in
-        let __closureWrapper = Func_void_std__string(self.__implementation.onError)
-        return bridge.create_Func_void_std__string(__closureWrapper.toUnsafe())
+      return { () -> bridge.Func_void_SSEError in
+        let __closureWrapper = Func_void_SSEError(self.__implementation.onError)
+        return bridge.create_Func_void_SSEError(__closureWrapper.toUnsafe())
       }()
     }
     @inline(__always)
     set {
-      self.__implementation.onError = { () -> (String) -> Void in
-        let __wrappedFunction = bridge.wrap_Func_void_std__string(newValue)
-        return { (__message: String) -> Void in
-          __wrappedFunction.call(std.string(__message))
+      self.__implementation.onError = { () -> (SSEError) -> Void in
+        let __wrappedFunction = bridge.wrap_Func_void_SSEError(newValue)
+        return { (__error: SSEError) -> Void in
+          __wrappedFunction.call(__error)
+        }
+      }()
+    }
+  }
+  
+  public final var onClose: bridge.Func_void {
+    @inline(__always)
+    get {
+      return { () -> bridge.Func_void in
+        let __closureWrapper = Func_void(self.__implementation.onClose)
+        return bridge.create_Func_void(__closureWrapper.toUnsafe())
+      }()
+    }
+    @inline(__always)
+    set {
+      self.__implementation.onClose = { () -> () -> Void in
+        let __wrappedFunction = bridge.wrap_Func_void(newValue)
+        return { () -> Void in
+          __wrappedFunction.call()
         }
       }()
     }
@@ -199,7 +218,7 @@ open class HybridSSEClientSpec_cxx {
 
   // Methods
   @inline(__always)
-  public final func connect(url: std.string, headers: bridge.std__optional_std__unordered_map_std__string__std__string__, session: bridge.std__optional_SSESessionOptions_) -> bridge.Result_void_ {
+  public final func connect(url: std.string, headers: bridge.std__optional_std__unordered_map_std__string__std__string__, session: bridge.std__optional_SSESessionOptions_, reconnect: bridge.std__optional_SSEReconnectOptions_) -> bridge.Result_void_ {
     do {
       try self.__implementation.connect(url: String(url), headers: { () -> Dictionary<String, String>? in
         if bridge.has_value_std__optional_std__unordered_map_std__string__std__string__(headers) {
@@ -216,7 +235,7 @@ open class HybridSSEClientSpec_cxx {
         } else {
           return nil
         }
-      }(), session: session.value)
+      }(), session: session.value, reconnect: reconnect.value)
       return bridge.create_Result_void_()
     } catch (let __error) {
       let __exceptionPtr = __error.toCpp()

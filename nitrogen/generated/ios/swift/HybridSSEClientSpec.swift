@@ -12,11 +12,12 @@ public protocol HybridSSEClientSpec_protocol: HybridObject {
   // Properties
   var onMessage: (_ event: SSEMessageEvent) -> Void { get set }
   var onOpen: () -> Void { get set }
-  var onError: (_ message: String) -> Void { get set }
+  var onError: (_ error: SSEError) -> Void { get set }
+  var onClose: () -> Void { get set }
   var onMetrics: (_ metrics: SSEConnectionMetrics) -> Void { get set }
 
   // Methods
-  func connect(url: String, headers: Dictionary<String, String>?, session: SSESessionOptions?) throws -> Void
+  func connect(url: String, headers: Dictionary<String, String>?, session: SSESessionOptions?, reconnect: SSEReconnectOptions?) throws -> Void
   func disconnect() throws -> Void
 }
 

@@ -9,10 +9,16 @@
 
 // Forward declaration of `SSEMessageEvent` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEMessageEvent; }
+// Forward declaration of `SSEError` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { struct SSEError; }
+// Forward declaration of `SSEErrorType` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { enum class SSEErrorType; }
 // Forward declaration of `SSEConnectionMetrics` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
 // Forward declaration of `SSESessionOptions` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
+// Forward declaration of `SSEReconnectOptions` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { struct SSEReconnectOptions; }
 
 #include "SSEMessageEvent.hpp"
 #include <functional>
@@ -22,13 +28,19 @@ namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 #include <string>
 #include <optional>
 #include "JFunc_void.hpp"
-#include "JFunc_void_std__string.hpp"
+#include "SSEError.hpp"
+#include "JFunc_void_SSEError.hpp"
+#include "JSSEError.hpp"
+#include "SSEErrorType.hpp"
+#include "JSSEErrorType.hpp"
 #include "SSEConnectionMetrics.hpp"
 #include "JFunc_void_SSEConnectionMetrics.hpp"
 #include "JSSEConnectionMetrics.hpp"
 #include <unordered_map>
 #include "SSESessionOptions.hpp"
 #include "JSSESessionOptions.hpp"
+#include "SSEReconnectOptions.hpp"
+#include "JSSEReconnectOptions.hpp"
 
 namespace margelo::nitro::nitrosseclient {
 
@@ -94,22 +106,39 @@ namespace margelo::nitro::nitrosseclient {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void::javaobject> /* onOpen */)>("setOnOpen_cxx");
     method(_javaPart, JFunc_void_cxx::fromCpp(onOpen));
   }
-  std::function<void(const std::string& /* message */)> JHybridSSEClientSpec::getOnError() {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void_std__string::javaobject>()>("getOnError_cxx");
+  std::function<void(const SSEError& /* error */)> JHybridSSEClientSpec::getOnError() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void_SSEError::javaobject>()>("getOnError_cxx");
     auto __result = method(_javaPart);
-    return [&]() -> std::function<void(const std::string& /* message */)> {
-      if (__result->isInstanceOf(JFunc_void_std__string_cxx::javaClassStatic())) [[likely]] {
-        auto downcast = jni::static_ref_cast<JFunc_void_std__string_cxx::javaobject>(__result);
+    return [&]() -> std::function<void(const SSEError& /* error */)> {
+      if (__result->isInstanceOf(JFunc_void_SSEError_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_SSEError_cxx::javaobject>(__result);
         return downcast->cthis()->getFunction();
       } else {
         auto __resultRef = jni::make_global(__result);
-        return JNICallable<JFunc_void_std__string, void(std::string)>(std::move(__resultRef));
+        return JNICallable<JFunc_void_SSEError, void(SSEError)>(std::move(__resultRef));
       }
     }();
   }
-  void JHybridSSEClientSpec::setOnError(const std::function<void(const std::string& /* message */)>& onError) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_std__string::javaobject> /* onError */)>("setOnError_cxx");
-    method(_javaPart, JFunc_void_std__string_cxx::fromCpp(onError));
+  void JHybridSSEClientSpec::setOnError(const std::function<void(const SSEError& /* error */)>& onError) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_SSEError::javaobject> /* onError */)>("setOnError_cxx");
+    method(_javaPart, JFunc_void_SSEError_cxx::fromCpp(onError));
+  }
+  std::function<void()> JHybridSSEClientSpec::getOnClose() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void::javaobject>()>("getOnClose_cxx");
+    auto __result = method(_javaPart);
+    return [&]() -> std::function<void()> {
+      if (__result->isInstanceOf(JFunc_void_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void, void()>(std::move(__resultRef));
+      }
+    }();
+  }
+  void JHybridSSEClientSpec::setOnClose(const std::function<void()>& onClose) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void::javaobject> /* onClose */)>("setOnClose_cxx");
+    method(_javaPart, JFunc_void_cxx::fromCpp(onClose));
   }
   std::function<void(const SSEConnectionMetrics& /* metrics */)> JHybridSSEClientSpec::getOnMetrics() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void_SSEConnectionMetrics::javaobject>()>("getOnMetrics_cxx");
@@ -130,15 +159,15 @@ namespace margelo::nitro::nitrosseclient {
   }
 
   // Methods
-  void JHybridSSEClientSpec::connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* url */, jni::alias_ref<jni::JMap<jni::JString, jni::JString>> /* headers */, jni::alias_ref<JSSESessionOptions> /* session */)>("connect");
+  void JHybridSSEClientSpec::connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session, const std::optional<SSEReconnectOptions>& reconnect) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* url */, jni::alias_ref<jni::JMap<jni::JString, jni::JString>> /* headers */, jni::alias_ref<JSSESessionOptions> /* session */, jni::alias_ref<JSSEReconnectOptions> /* reconnect */)>("connect");
     method(_javaPart, jni::make_jstring(url), headers.has_value() ? [&]() -> jni::local_ref<jni::JMap<jni::JString, jni::JString>> {
       auto __map = jni::JHashMap<jni::JString, jni::JString>::create(headers.value().size());
       for (const auto& __entry : headers.value()) {
         __map->put(jni::make_jstring(__entry.first), jni::make_jstring(__entry.second));
       }
       return __map;
-    }() : nullptr, session.has_value() ? JSSESessionOptions::fromCpp(session.value()) : nullptr);
+    }() : nullptr, session.has_value() ? JSSESessionOptions::fromCpp(session.value()) : nullptr, reconnect.has_value() ? JSSEReconnectOptions::fromCpp(reconnect.value()) : nullptr);
   }
   void JHybridSSEClientSpec::disconnect() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void()>("disconnect");

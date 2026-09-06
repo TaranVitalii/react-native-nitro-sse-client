@@ -14,18 +14,27 @@ namespace NitroSseClient { class HybridSSEClientSpec_cxx; }
 
 // Forward declaration of `SSEMessageEvent` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEMessageEvent; }
+// Forward declaration of `SSEError` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { struct SSEError; }
+// Forward declaration of `SSEErrorType` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { enum class SSEErrorType; }
 // Forward declaration of `SSEConnectionMetrics` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
 // Forward declaration of `SSESessionOptions` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
+// Forward declaration of `SSEReconnectOptions` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { struct SSEReconnectOptions; }
 
 #include "SSEMessageEvent.hpp"
 #include <functional>
 #include <string>
 #include <optional>
+#include "SSEError.hpp"
+#include "SSEErrorType.hpp"
 #include "SSEConnectionMetrics.hpp"
 #include <unordered_map>
 #include "SSESessionOptions.hpp"
+#include "SSEReconnectOptions.hpp"
 
 #include "NitroSseClient-Swift-Cxx-Umbrella.hpp"
 
@@ -87,12 +96,19 @@ namespace margelo::nitro::nitrosseclient {
     inline void setOnOpen(const std::function<void()>& onOpen) noexcept override {
       _swiftPart.setOnOpen(onOpen);
     }
-    inline std::function<void(const std::string& /* message */)> getOnError() noexcept override {
+    inline std::function<void(const SSEError& /* error */)> getOnError() noexcept override {
       auto __result = _swiftPart.getOnError();
       return __result;
     }
-    inline void setOnError(const std::function<void(const std::string& /* message */)>& onError) noexcept override {
+    inline void setOnError(const std::function<void(const SSEError& /* error */)>& onError) noexcept override {
       _swiftPart.setOnError(onError);
+    }
+    inline std::function<void()> getOnClose() noexcept override {
+      auto __result = _swiftPart.getOnClose();
+      return __result;
+    }
+    inline void setOnClose(const std::function<void()>& onClose) noexcept override {
+      _swiftPart.setOnClose(onClose);
     }
     inline std::function<void(const SSEConnectionMetrics& /* metrics */)> getOnMetrics() noexcept override {
       auto __result = _swiftPart.getOnMetrics();
@@ -104,8 +120,8 @@ namespace margelo::nitro::nitrosseclient {
 
   public:
     // Methods
-    inline void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session) override {
-      auto __result = _swiftPart.connect(url, headers, session);
+    inline void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session, const std::optional<SSEReconnectOptions>& reconnect) override {
+      auto __result = _swiftPart.connect(url, headers, session, reconnect);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }

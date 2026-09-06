@@ -18,7 +18,7 @@
 #include "JHybridSSEClientSpec.hpp"
 #include "JFunc_void_SSEMessageEvent.hpp"
 #include "JFunc_void.hpp"
-#include "JFunc_void_std__string.hpp"
+#include "JFunc_void_SSEError.hpp"
 #include "JFunc_void_SSEConnectionMetrics.hpp"
 #include <NitroModules/DefaultConstructableObject.hpp>
 
@@ -47,7 +47,7 @@ void registerAllNatives() {
   margelo::nitro::nitrosseclient::JHybridSSEClientSpec::CxxPart::registerNatives();
   margelo::nitro::nitrosseclient::JFunc_void_SSEMessageEvent_cxx::registerNatives();
   margelo::nitro::nitrosseclient::JFunc_void_cxx::registerNatives();
-  margelo::nitro::nitrosseclient::JFunc_void_std__string_cxx::registerNatives();
+  margelo::nitro::nitrosseclient::JFunc_void_SSEError_cxx::registerNatives();
   margelo::nitro::nitrosseclient::JFunc_void_SSEConnectionMetrics_cxx::registerNatives();
 
   // Register Nitro Hybrid Objects
