@@ -79,6 +79,10 @@ class HybridSSEClient: HybridSSEClientSpec {
   var onClose: () -> Void = { }
   var onMetrics: (SSEConnectionMetrics) -> Void = { _ in }
   var onStateChange: (SSEConnectionState) -> Void = { _ in }
+  // Default no-op resolves immediately with no extra headers — most streams never set this.
+  var onBeforeRequest: () -> Promise<Promise<[String: String]>> = {
+    Promise.resolved(withResult: Promise.resolved(withResult: [:]))
+  }
 
   private let streamDelegate = SSEStreamDelegate()
 
@@ -124,6 +128,10 @@ class HybridSSEClient: HybridSSEClientSpec {
   private var intentionallyStopped = false
   private var lastEventId: String?
   private var currentState: SSEConnectionState = .idle
+  // Bumped on every performConnect() attempt (explicit or reconnect) — captured before awaiting
+  // onBeforeRequest, and re-checked after it resolves, so an attempt superseded by a newer
+  // connect()/reconnect during that async gap doesn't go on to fire its (now stale) request.
+  private var connectGeneration = 0
 
   public override init() {
     super.init()
@@ -180,11 +188,36 @@ class HybridSSEClient: HybridSSEClientSpec {
   }
 
   private func performConnect(isReconnect: Bool) {
-    guard let nsUrl = connectURL else { return }
+    guard connectURL != nil else { return }
 
     // Cancelling here (rather than tearing down the shared session) is what lets connection N+1
     // reuse the pool built up by connection N — only the task is torn down, never the session.
+    // Nilled out immediately (not just cancelled) so a late delegate callback for this old task,
+    // arriving during the onBeforeRequest await below, fails the `task === currentTask` identity
+    // guard the same way it would if we'd already moved on to a new task.
     currentTask?.cancel()
+    currentTask = nil
+
+    connectGeneration += 1
+    let generation = connectGeneration
+
+    Task { [weak self] in
+      guard let self else { return }
+      var extraHeaders: [String: String] = [:]
+      do {
+        // Double-await: onBeforeRequest() itself returns a Promise (the JSI call dispatch), which
+        // resolves to the Promise<[String: String]> the JS implementation returned.
+        extraHeaders = try await self.onBeforeRequest().await().await()
+      } catch {
+        // onBeforeRequest failing shouldn't block connecting — proceed without extra headers.
+      }
+      guard self.connectGeneration == generation, !self.intentionallyStopped else { return }
+      self.fireRequest(isReconnect: isReconnect, extraHeaders: extraHeaders)
+    }
+  }
+
+  private func fireRequest(isReconnect: Bool, extraHeaders: [String: String]) {
+    guard let nsUrl = connectURL else { return }
 
     byteBuffer.removeAll(keepingCapacity: false)
     pendingErrorType = nil
@@ -211,6 +244,11 @@ class HybridSSEClient: HybridSSEClientSpec {
       for (key, value) in connectHeaders {
         request.setValue(value, forHTTPHeaderField: key)
       }
+    }
+    // onBeforeRequest's result is applied last, so it can override anything above — e.g.
+    // refreshing an Authorization header that connectHeaders set with a now-stale token.
+    for (key, value) in extraHeaders {
+      request.setValue(value, forHTTPHeaderField: key)
     }
     // Only sent on an automatic reconnect that has actually seen an id: field — an explicit
     // connect() always starts a fresh logical session (see lastEventId reset in connect()).

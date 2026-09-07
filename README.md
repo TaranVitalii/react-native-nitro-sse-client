@@ -78,6 +78,26 @@ stream.connect('https://your-server.example.com/chat/completions', {
 })
 ```
 
+### Refreshing headers before a request
+
+`onBeforeRequest` is awaited immediately before every request this stream makes — the initial
+`connect()` and every automatic reconnect alike — so it's the right place to refresh a short-lived
+auth token, rather than a reconnect firing (and getting rejected) with a stale one:
+
+```ts
+stream.onBeforeRequest = async () => {
+  const token = await getFreshAccessToken()
+  return { Authorization: `Bearer ${token}` }
+}
+
+stream.connect('https://your-server.example.com/events')
+```
+
+Whatever headers it resolves with are merged over the `connect()`-time `headers`, resolved values
+winning on a key collision — so a stream can rely entirely on `onBeforeRequest` for auth and skip
+`headers` altogether, as above. If the returned promise rejects, the request proceeds anyway
+without the extra headers (a broken token-refresh hook shouldn't block reconnecting outright).
+
 See [`example/App.tsx`](./example/App.tsx) for a complete, runnable example.
 
 ## API
@@ -111,6 +131,7 @@ Assign these as plain properties; they're invoked repeatedly, not one-shot.
 | `onClose: () => void` | Whenever the connection ends, for any reason — a normal server-side close, right after `onError`, or an explicit `disconnect()`. Fires again after every automatic reconnect's connection ends, so it does not mean the stream gave up. |
 | `onMetrics: (metrics: SSEConnectionMetrics) => void` | Fires once per connection, when it ends — see [Reading `onMetrics`](#reading-onmetrics) below. |
 | `onStateChange: (state: SSEConnectionState) => void` | Fires on every connection-state transition — see [Connection state](#connection-state) below. Only fires when the state actually changes. |
+| `onBeforeRequest: () => Promise<Record<string, string>>` | Awaited immediately before every request — the initial `connect()` and every automatic reconnect alike. See [Refreshing headers before a request](#refreshing-headers-before-a-request) below. |
 
 ### Types
 

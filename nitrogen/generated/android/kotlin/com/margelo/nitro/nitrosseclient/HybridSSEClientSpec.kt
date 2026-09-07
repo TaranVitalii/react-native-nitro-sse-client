@@ -11,6 +11,7 @@ import androidx.annotation.Keep
 import com.facebook.jni.HybridData
 import com.facebook.proguard.annotations.DoNotStrip
 import dalvik.annotation.optimization.FastNative
+import com.margelo.nitro.core.Promise
 import com.margelo.nitro.core.HybridObject
 
 /**
@@ -108,6 +109,20 @@ abstract class HybridSSEClientSpec: HybridObject() {
     @DoNotStrip
     set(value) {
       onStateChange = value
+    }
+  
+  abstract var onBeforeRequest: () -> Promise<Promise<Map<String, String>>>
+  
+  private var onBeforeRequest_cxx: Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____
+    @Keep
+    @DoNotStrip
+    get() {
+      return Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string______java(onBeforeRequest)
+    }
+    @Keep
+    @DoNotStrip
+    set(value) {
+      onBeforeRequest = value
     }
 
   // Methods

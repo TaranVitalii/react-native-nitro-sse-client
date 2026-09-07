@@ -234,6 +234,46 @@ open class HybridSSEClientSpec_cxx {
       }()
     }
   }
+  
+  public final var onBeforeRequest: bridge.Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____ {
+    @inline(__always)
+    get {
+      return { () -> bridge.Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____ in
+        let __closureWrapper = Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____(self.__implementation.onBeforeRequest)
+        return bridge.create_Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____(__closureWrapper.toUnsafe())
+      }()
+    }
+    @inline(__always)
+    set {
+      self.__implementation.onBeforeRequest = { () -> () -> Promise<Promise<Dictionary<String, String>>> in
+        let __wrappedFunction = bridge.wrap_Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____(newValue)
+        return { () -> Promise<Promise<Dictionary<String, String>>> in
+          let __result = __wrappedFunction.call()
+          return { () -> Promise<Promise<Dictionary<String, String>>> in
+            let __promise = Promise<Promise<Dictionary<String, String>>>()
+            let __resolver = { (__result: Promise<Dictionary<String, String>>) in
+              __promise.resolve(withResult: __result)
+            }
+            let __rejecter = { (__error: Error) in
+              __promise.reject(withError: __error)
+            }
+            let __resolverCpp = { () -> bridge.Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___ in
+              let __closureWrapper = Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___(__resolver)
+              return bridge.create_Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___(__closureWrapper.toUnsafe())
+            }()
+            let __rejecterCpp = { () -> bridge.Func_void_std__exception_ptr in
+              let __closureWrapper = Func_void_std__exception_ptr(__rejecter)
+              return bridge.create_Func_void_std__exception_ptr(__closureWrapper.toUnsafe())
+            }()
+            let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____(__result)
+            __promiseHolder.addOnResolvedListener(__resolverCpp)
+            __promiseHolder.addOnRejectedListener(__rejecterCpp)
+            return __promise
+          }()
+        }
+      }()
+    }
+  }
 
   // Methods
   @inline(__always)
