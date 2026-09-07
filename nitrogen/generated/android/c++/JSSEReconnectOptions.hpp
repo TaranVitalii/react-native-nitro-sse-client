@@ -43,6 +43,8 @@ namespace margelo::nitro::nitrosseclient {
       jni::local_ref<jni::JDouble> maxAttempts = this->getFieldValue(fieldMaxAttempts);
       static const auto fieldRetryOnClientError = clazz->getField<jni::JBoolean>("retryOnClientError");
       jni::local_ref<jni::JBoolean> retryOnClientError = this->getFieldValue(fieldRetryOnClientError);
+      static const auto fieldHeartbeatTimeoutMs = clazz->getField<jni::JDouble>("heartbeatTimeoutMs");
+      jni::local_ref<jni::JDouble> heartbeatTimeoutMs = this->getFieldValue(fieldHeartbeatTimeoutMs);
       static const auto fieldMonitorNetwork = clazz->getField<jni::JBoolean>("monitorNetwork");
       jni::local_ref<jni::JBoolean> monitorNetwork = this->getFieldValue(fieldMonitorNetwork);
       return SSEReconnectOptions(
@@ -52,6 +54,7 @@ namespace margelo::nitro::nitrosseclient {
         jitterFactor != nullptr ? std::make_optional(jitterFactor->value()) : std::nullopt,
         maxAttempts != nullptr ? std::make_optional(maxAttempts->value()) : std::nullopt,
         retryOnClientError != nullptr ? std::make_optional(static_cast<bool>(retryOnClientError->value())) : std::nullopt,
+        heartbeatTimeoutMs != nullptr ? std::make_optional(heartbeatTimeoutMs->value()) : std::nullopt,
         monitorNetwork != nullptr ? std::make_optional(static_cast<bool>(monitorNetwork->value())) : std::nullopt
       );
     }
@@ -62,7 +65,7 @@ namespace margelo::nitro::nitrosseclient {
      */
     [[maybe_unused]]
     static jni::local_ref<JSSEReconnectOptions::javaobject> fromCpp(const SSEReconnectOptions& value) {
-      using JSignature = JSSEReconnectOptions(jni::alias_ref<jni::JBoolean>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JBoolean>, jni::alias_ref<jni::JBoolean>);
+      using JSignature = JSSEReconnectOptions(jni::alias_ref<jni::JBoolean>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JBoolean>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JBoolean>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
@@ -73,6 +76,7 @@ namespace margelo::nitro::nitrosseclient {
         value.jitterFactor.has_value() ? jni::JDouble::valueOf(value.jitterFactor.value()) : nullptr,
         value.maxAttempts.has_value() ? jni::JDouble::valueOf(value.maxAttempts.value()) : nullptr,
         value.retryOnClientError.has_value() ? jni::JBoolean::valueOf(value.retryOnClientError.value()) : nullptr,
+        value.heartbeatTimeoutMs.has_value() ? jni::JDouble::valueOf(value.heartbeatTimeoutMs.value()) : nullptr,
         value.monitorNetwork.has_value() ? jni::JBoolean::valueOf(value.monitorNetwork.value()) : nullptr
       );
     }
