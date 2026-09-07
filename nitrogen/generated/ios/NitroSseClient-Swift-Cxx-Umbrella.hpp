@@ -34,6 +34,7 @@ namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 #include "SSEMessageEvent.hpp"
 #include "SSEReconnectOptions.hpp"
 #include "SSESessionOptions.hpp"
+#include <NitroModules/Promise.hpp>
 #include <NitroModules/Result.hpp>
 #include <exception>
 #include <functional>

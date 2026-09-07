@@ -33,6 +33,7 @@ namespace margelo::nitro::nitrosseclient { struct SSEReconnectOptions; }
 #include "SSEConnectionState.hpp"
 #include <string>
 #include <unordered_map>
+#include <NitroModules/Promise.hpp>
 #include <optional>
 #include "SSESessionOptions.hpp"
 #include "SSEReconnectOptions.hpp"
@@ -76,6 +77,8 @@ namespace margelo::nitro::nitrosseclient {
       virtual void setOnMetrics(const std::function<void(const SSEConnectionMetrics& /* metrics */)>& onMetrics) = 0;
       virtual std::function<void(SSEConnectionState /* state */)> getOnStateChange() = 0;
       virtual void setOnStateChange(const std::function<void(SSEConnectionState /* state */)>& onStateChange) = 0;
+      virtual std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()> getOnBeforeRequest() = 0;
+      virtual void setOnBeforeRequest(const std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>& onBeforeRequest) = 0;
 
     public:
       // Methods

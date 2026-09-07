@@ -36,6 +36,7 @@ namespace margelo::nitro::nitrosseclient { struct SSEReconnectOptions; }
 #include "SSEConnectionMetrics.hpp"
 #include "SSEConnectionState.hpp"
 #include <unordered_map>
+#include <NitroModules/Promise.hpp>
 #include "SSESessionOptions.hpp"
 #include "SSEReconnectOptions.hpp"
 
@@ -126,6 +127,13 @@ namespace margelo::nitro::nitrosseclient {
     }
     inline void setOnStateChange(const std::function<void(SSEConnectionState /* state */)>& onStateChange) noexcept override {
       _swiftPart.setOnStateChange(onStateChange);
+    }
+    inline std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()> getOnBeforeRequest() noexcept override {
+      auto __result = _swiftPart.getOnBeforeRequest();
+      return __result;
+    }
+    inline void setOnBeforeRequest(const std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>& onBeforeRequest) noexcept override {
+      _swiftPart.setOnBeforeRequest(onBeforeRequest);
     }
 
   public:
