@@ -168,7 +168,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
     headers: Map<String, String>?,
     session: SSESessionOptions?,
     reconnect: SSEReconnectOptions?,
-    method: String?,
+    httpMethod: String?,
     body: String?,
     validateContentType: Boolean?
   ) {
@@ -191,7 +191,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
 
     connectUrl = url
     connectHeaders = headers
-    connectMethod = method
+    connectMethod = httpMethod
     connectBody = body
     connectSession = session
     shouldValidateContentType = validateContentType ?: true

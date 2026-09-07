@@ -129,7 +129,7 @@ class HybridSSEClient: HybridSSEClientSpec {
     headers: [String: String]?,
     session: SSESessionOptions?,
     reconnect: SSEReconnectOptions?,
-    method: String?,
+    httpMethod: String?,
     body: String?,
     validateContentType: Bool?
   ) throws {
@@ -149,7 +149,7 @@ class HybridSSEClient: HybridSSEClientSpec {
 
     connectURL = nsUrl
     connectHeaders = headers
-    connectMethod = method
+    connectMethod = httpMethod
     connectBody = body
     connectSession = session
     shouldValidateContentType = validateContentType ?? true

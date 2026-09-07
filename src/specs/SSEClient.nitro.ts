@@ -101,7 +101,13 @@ export interface SSEClient
     headers?: Record<string, string>,
     session?: SSESessionOptions,
     reconnect?: SSEReconnectOptions,
-    method?: string,
+    // Named httpMethod, not method: nitrogen's own generated Android/JNI binding code declares a
+    // local variable literally named `method` inside every wrapped function (the looked-up Java
+    // Method object) — a parameter also named `method` collides with it, causing a C++
+    // "redefinition of 'method'" compile error that only surfaces on Android (Swift's codegen
+    // doesn't hit this). Purely an internal rename — the JS-facing SSEConnectOptions.method field
+    // name is unaffected.
+    httpMethod?: string,
     body?: string,
     /** Default true. A non-`text/event-stream` Content-Type on an otherwise-successful response
      * is reported via onError (type 'invalid-content-type') instead of being treated as open.
