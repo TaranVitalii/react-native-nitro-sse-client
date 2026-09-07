@@ -42,10 +42,11 @@ namespace margelo::nitro::nitrosseclient {
     std::optional<bool> enabled     SWIFT_PRIVATE;
     std::optional<double> intervalMs     SWIFT_PRIVATE;
     std::optional<double> maxAttempts     SWIFT_PRIVATE;
+    std::optional<bool> retryOnClientError     SWIFT_PRIVATE;
 
   public:
     SSEReconnectOptions() = default;
-    explicit SSEReconnectOptions(std::optional<bool> enabled, std::optional<double> intervalMs, std::optional<double> maxAttempts): enabled(enabled), intervalMs(intervalMs), maxAttempts(maxAttempts) {}
+    explicit SSEReconnectOptions(std::optional<bool> enabled, std::optional<double> intervalMs, std::optional<double> maxAttempts, std::optional<bool> retryOnClientError): enabled(enabled), intervalMs(intervalMs), maxAttempts(maxAttempts), retryOnClientError(retryOnClientError) {}
 
   public:
     friend bool operator==(const SSEReconnectOptions& lhs, const SSEReconnectOptions& rhs) = default;
@@ -63,7 +64,8 @@ namespace margelo::nitro {
       return margelo::nitro::nitrosseclient::SSEReconnectOptions(
         JSIConverter<std::optional<bool>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "enabled"))),
         JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "intervalMs"))),
-        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "maxAttempts")))
+        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "maxAttempts"))),
+        JSIConverter<std::optional<bool>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "retryOnClientError")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::nitrosseclient::SSEReconnectOptions& arg) {
@@ -71,6 +73,7 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "enabled"), JSIConverter<std::optional<bool>>::toJSI(runtime, arg.enabled));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "intervalMs"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.intervalMs));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "maxAttempts"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.maxAttempts));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "retryOnClientError"), JSIConverter<std::optional<bool>>::toJSI(runtime, arg.retryOnClientError));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -84,6 +87,7 @@ namespace margelo::nitro {
       if (!JSIConverter<std::optional<bool>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "enabled")))) return false;
       if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "intervalMs")))) return false;
       if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "maxAttempts")))) return false;
+      if (!JSIConverter<std::optional<bool>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "retryOnClientError")))) return false;
       return true;
     }
   };

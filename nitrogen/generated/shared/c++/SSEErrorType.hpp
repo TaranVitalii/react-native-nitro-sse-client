@@ -30,9 +30,10 @@ namespace margelo::nitro::nitrosseclient {
    */
   enum class SSEErrorType {
     HTTP      SWIFT_NAME(http) = 0,
-    NETWORK      SWIFT_NAME(network) = 1,
-    TIMEOUT      SWIFT_NAME(timeout) = 2,
-    EXCEPTION      SWIFT_NAME(exception) = 3,
+    INVALID_CONTENT_TYPE      SWIFT_NAME(invalidContentType) = 1,
+    NETWORK      SWIFT_NAME(network) = 2,
+    TIMEOUT      SWIFT_NAME(timeout) = 3,
+    EXCEPTION      SWIFT_NAME(exception) = 4,
   } CLOSED_ENUM;
 
 } // namespace margelo::nitro::nitrosseclient
@@ -46,6 +47,7 @@ namespace margelo::nitro {
       std::string unionValue = JSIConverter<std::string>::fromJSI(runtime, arg);
       switch (hashString(unionValue.c_str(), unionValue.size())) {
         case hashString("http"): return margelo::nitro::nitrosseclient::SSEErrorType::HTTP;
+        case hashString("invalid-content-type"): return margelo::nitro::nitrosseclient::SSEErrorType::INVALID_CONTENT_TYPE;
         case hashString("network"): return margelo::nitro::nitrosseclient::SSEErrorType::NETWORK;
         case hashString("timeout"): return margelo::nitro::nitrosseclient::SSEErrorType::TIMEOUT;
         case hashString("exception"): return margelo::nitro::nitrosseclient::SSEErrorType::EXCEPTION;
@@ -56,6 +58,7 @@ namespace margelo::nitro {
     static inline jsi::Value toJSI(jsi::Runtime& runtime, margelo::nitro::nitrosseclient::SSEErrorType arg) {
       switch (arg) {
         case margelo::nitro::nitrosseclient::SSEErrorType::HTTP: return JSIConverter<std::string>::toJSI(runtime, "http");
+        case margelo::nitro::nitrosseclient::SSEErrorType::INVALID_CONTENT_TYPE: return JSIConverter<std::string>::toJSI(runtime, "invalid-content-type");
         case margelo::nitro::nitrosseclient::SSEErrorType::NETWORK: return JSIConverter<std::string>::toJSI(runtime, "network");
         case margelo::nitro::nitrosseclient::SSEErrorType::TIMEOUT: return JSIConverter<std::string>::toJSI(runtime, "timeout");
         case margelo::nitro::nitrosseclient::SSEErrorType::EXCEPTION: return JSIConverter<std::string>::toJSI(runtime, "exception");
@@ -71,6 +74,7 @@ namespace margelo::nitro {
       std::string unionValue = JSIConverter<std::string>::fromJSI(runtime, value);
       switch (hashString(unionValue.c_str(), unionValue.size())) {
         case hashString("http"):
+        case hashString("invalid-content-type"):
         case hashString("network"):
         case hashString("timeout"):
         case hashString("exception"):

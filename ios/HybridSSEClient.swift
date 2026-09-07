@@ -88,22 +88,29 @@ class HybridSSEClient: HybridSSEClientSpec {
   private var connectStartedAt: Date?
   private var firstByteLogged = false
 
-  // Set in handleResponse when the response status isn't 2xx; handleData then buffers the body
-  // here (instead of feeding it through the normal SSE byteBuffer/parser) so it can be reported
-  // as the onError message once the response completes.
-  private var errorStatusCode: Int?
+  // Set in handleResponse when the response is being treated as an error (non-2xx status, or a
+  // Content-Type mismatch); handleData then buffers the body here (instead of feeding it through
+  // the normal SSE byteBuffer/parser) so it can be reported as the onError message once the
+  // response completes.
+  private var pendingErrorType: SSEErrorType?
+  private var pendingErrorStatusCode: Int?
   private var errorBodyData = Data()
 
-  // Reconnect state. connectURL/connectHeaders/session are remembered so an automatic reconnect
-  // can repeat the same connect() call; reconnectEnabled/maxAttempts come from the caller's
-  // SSEReconnectOptions, resolved once per explicit connect(). currentIntervalMs starts at
-  // options.intervalMs (default 3s) and is overridden per-stream by a `retry:` field from the
-  // server; it resets back to the option's value on the next *explicit* connect().
+  // Reconnect state. connectURL/connectHeaders/connectMethod/connectBody/session are remembered
+  // so an automatic reconnect can repeat the same connect() call; reconnectEnabled/maxAttempts/
+  // retryOnClientError come from the caller's SSEReconnectOptions, resolved once per explicit
+  // connect(). currentIntervalMs starts at options.intervalMs (default 3s) and is overridden
+  // per-stream by a `retry:` field from the server; it resets back to the option's value on the
+  // next *explicit* connect().
   private var connectURL: URL?
   private var connectHeaders: [String: String]?
+  private var connectMethod: String?
+  private var connectBody: String?
   private var connectSession: SSESessionOptions?
+  private var shouldValidateContentType = true
   private var reconnectEnabled = true
   private var reconnectMaxAttempts: Double?
+  private var retryOnClientError = false
   private var currentIntervalMs = defaultReconnectIntervalMs
   private var reconnectAttempts = 0
   private var pendingReconnect: DispatchWorkItem?
@@ -121,7 +128,10 @@ class HybridSSEClient: HybridSSEClientSpec {
     url: String,
     headers: [String: String]?,
     session: SSESessionOptions?,
-    reconnect: SSEReconnectOptions?
+    reconnect: SSEReconnectOptions?,
+    method: String?,
+    body: String?,
+    validateContentType: Bool?
   ) throws {
     // Validated before touching any existing connection, so a bad URL on a reconnect attempt
     // doesn't tear down a connection that was working fine — and reported through onError like
@@ -139,10 +149,14 @@ class HybridSSEClient: HybridSSEClientSpec {
 
     connectURL = nsUrl
     connectHeaders = headers
+    connectMethod = method
+    connectBody = body
     connectSession = session
+    shouldValidateContentType = validateContentType ?? true
     reconnectEnabled = reconnect?.enabled ?? true
     currentIntervalMs = reconnect?.intervalMs ?? defaultReconnectIntervalMs
     reconnectMaxAttempts = reconnect?.maxAttempts
+    retryOnClientError = reconnect?.retryOnClientError ?? false
 
     performConnect(isReconnect: false)
   }
@@ -155,12 +169,17 @@ class HybridSSEClient: HybridSSEClientSpec {
     currentTask?.cancel()
 
     byteBuffer.removeAll(keepingCapacity: false)
-    errorStatusCode = nil
+    pendingErrorType = nil
+    pendingErrorStatusCode = nil
     errorBodyData.removeAll(keepingCapacity: false)
     firstByteLogged = false
     connectStartedAt = Date()
 
     var request = URLRequest(url: nsUrl)
+    request.httpMethod = connectMethod ?? "GET"
+    if let connectBody {
+      request.httpBody = connectBody.data(using: .utf8)
+    }
     request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
     // Some SSE providers (e.g. Wikimedia) reject requests carrying the platform's generic
     // default User-Agent; identify this library instead of leaving it unset.
@@ -222,14 +241,32 @@ class HybridSSEClient: HybridSSEClientSpec {
     // like this would fire onOpen() for a connection that's no longer the active one.
     guard task === currentTask else { return }
 
-    guard let httpResponse = response as? HTTPURLResponse, !(200..<300).contains(httpResponse.statusCode) else {
+    guard let httpResponse = response as? HTTPURLResponse else {
       reconnectAttempts = 0
       onOpen()
       return
     }
-    // Non-2xx: don't fire onOpen at all — handleData buffers the error body instead of treating
-    // it as SSE frames, and handleCompletion reports it once the response finishes.
-    errorStatusCode = httpResponse.statusCode
+
+    guard (200..<300).contains(httpResponse.statusCode) else {
+      // Non-2xx: don't fire onOpen at all — handleData buffers the error body instead of treating
+      // it as SSE frames, and handleCompletion reports it once the response finishes.
+      pendingErrorType = .http
+      pendingErrorStatusCode = httpResponse.statusCode
+      return
+    }
+
+    if shouldValidateContentType {
+      let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type")?.lowercased() ?? ""
+      guard contentType.hasPrefix("text/event-stream") else {
+        // 2xx but not actually SSE (a login redirect page, a JSON error body, etc.) — same
+        // "buffer the body, don't fire onOpen" treatment as a non-2xx status.
+        pendingErrorType = .invalidContentType
+        return
+      }
+    }
+
+    reconnectAttempts = 0
+    onOpen()
   }
 
   fileprivate func handleData(_ data: Data, task: URLSessionTask) {
@@ -238,7 +275,7 @@ class HybridSSEClient: HybridSSEClientSpec {
     // (already-reset) byteBuffer.
     guard task === currentTask else { return }
 
-    if errorStatusCode != nil {
+    if pendingErrorType != nil {
       let remaining = maxErrorBodyBytes - errorBodyData.count
       if remaining > 0 {
         errorBodyData.append(data.prefix(remaining))
@@ -267,14 +304,19 @@ class HybridSSEClient: HybridSSEClientSpec {
     // either that (already handled) or a superseded task (nothing to report).
     guard task === currentTask else { return }
 
-    if let statusCode = errorStatusCode {
+    if let errorType = pendingErrorType {
+      let statusCode = pendingErrorStatusCode
       let bodyString = String(data: errorBodyData, encoding: .utf8) ?? ""
-      errorStatusCode = nil
+      let message = !bodyString.isEmpty
+        ? bodyString
+        : (errorType == .invalidContentType ? "Response Content-Type was not text/event-stream" : "")
+      pendingErrorType = nil
+      pendingErrorStatusCode = nil
       errorBodyData.removeAll(keepingCapacity: false)
-      NSLog("[Native SSE][iOS] HTTP error: %d", statusCode)
-      onError(SSEError(message: bodyString, type: .http, statusCode: Double(statusCode)))
+      NSLog("[Native SSE][iOS] %@ error: %@", errorType == .http ? "HTTP" : "content-type", statusCode.map(String.init) ?? "n/a")
+      onError(SSEError(message: message, type: errorType, statusCode: statusCode.map(Double.init)))
       onClose()
-      scheduleReconnectIfNeeded()
+      scheduleReconnectIfNeeded(afterHttpStatus: statusCode, wasContentTypeError: errorType == .invalidContentType)
       return
     }
 
@@ -284,17 +326,30 @@ class HybridSSEClient: HybridSSEClientSpec {
       let type: SSEErrorType = nsError.code == NSURLErrorTimedOut ? .timeout : .network
       onError(SSEError(message: nsError.localizedDescription, type: type, statusCode: nil))
       onClose()
-      scheduleReconnectIfNeeded()
+      scheduleReconnectIfNeeded(afterHttpStatus: nil, wasContentTypeError: false)
       return
     }
 
     // No error, not an HTTP error, task is done: the server closed the stream normally.
     onClose()
-    scheduleReconnectIfNeeded()
+    scheduleReconnectIfNeeded(afterHttpStatus: nil, wasContentTypeError: false)
   }
 
-  private func scheduleReconnectIfNeeded() {
+  // A 4xx status (other than 429, a rate-limit signal worth retrying) reflects something wrong
+  // with the request/server config that retrying identically won't fix — same for a Content-Type
+  // mismatch. Both are skipped by default; retryOnClientError opts back into the old
+  // retry-everything behavior.
+  private func isRetryableByDefault(httpStatus: Int?, wasContentTypeError: Bool) -> Bool {
+    if retryOnClientError { return true }
+    if wasContentTypeError { return false }
+    guard let httpStatus else { return true }
+    if httpStatus == 429 { return true }
+    return !(400..<500).contains(httpStatus)
+  }
+
+  private func scheduleReconnectIfNeeded(afterHttpStatus statusCode: Int?, wasContentTypeError: Bool) {
     guard reconnectEnabled, !intentionallyStopped else { return }
+    guard isRetryableByDefault(httpStatus: statusCode, wasContentTypeError: wasContentTypeError) else { return }
     if let maxAttempts = reconnectMaxAttempts, Double(reconnectAttempts) >= maxAttempts { return }
     reconnectAttempts += 1
 

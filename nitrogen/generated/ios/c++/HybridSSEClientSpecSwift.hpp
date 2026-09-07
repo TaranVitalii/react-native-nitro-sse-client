@@ -120,8 +120,8 @@ namespace margelo::nitro::nitrosseclient {
 
   public:
     // Methods
-    inline void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session, const std::optional<SSEReconnectOptions>& reconnect) override {
-      auto __result = _swiftPart.connect(url, headers, session, reconnect);
+    inline void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session, const std::optional<SSEReconnectOptions>& reconnect, const std::optional<std::string>& method, const std::optional<std::string>& body, std::optional<bool> validateContentType) override {
+      auto __result = _swiftPart.connect(url, headers, session, reconnect, method, body, validateContentType);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }

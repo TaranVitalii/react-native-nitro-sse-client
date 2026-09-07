@@ -37,10 +37,13 @@ namespace margelo::nitro::nitrosseclient {
       jni::local_ref<jni::JDouble> intervalMs = this->getFieldValue(fieldIntervalMs);
       static const auto fieldMaxAttempts = clazz->getField<jni::JDouble>("maxAttempts");
       jni::local_ref<jni::JDouble> maxAttempts = this->getFieldValue(fieldMaxAttempts);
+      static const auto fieldRetryOnClientError = clazz->getField<jni::JBoolean>("retryOnClientError");
+      jni::local_ref<jni::JBoolean> retryOnClientError = this->getFieldValue(fieldRetryOnClientError);
       return SSEReconnectOptions(
         enabled != nullptr ? std::make_optional(static_cast<bool>(enabled->value())) : std::nullopt,
         intervalMs != nullptr ? std::make_optional(intervalMs->value()) : std::nullopt,
-        maxAttempts != nullptr ? std::make_optional(maxAttempts->value()) : std::nullopt
+        maxAttempts != nullptr ? std::make_optional(maxAttempts->value()) : std::nullopt,
+        retryOnClientError != nullptr ? std::make_optional(static_cast<bool>(retryOnClientError->value())) : std::nullopt
       );
     }
 
@@ -50,14 +53,15 @@ namespace margelo::nitro::nitrosseclient {
      */
     [[maybe_unused]]
     static jni::local_ref<JSSEReconnectOptions::javaobject> fromCpp(const SSEReconnectOptions& value) {
-      using JSignature = JSSEReconnectOptions(jni::alias_ref<jni::JBoolean>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JDouble>);
+      using JSignature = JSSEReconnectOptions(jni::alias_ref<jni::JBoolean>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JDouble>, jni::alias_ref<jni::JBoolean>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
         clazz,
         value.enabled.has_value() ? jni::JBoolean::valueOf(value.enabled.value()) : nullptr,
         value.intervalMs.has_value() ? jni::JDouble::valueOf(value.intervalMs.value()) : nullptr,
-        value.maxAttempts.has_value() ? jni::JDouble::valueOf(value.maxAttempts.value()) : nullptr
+        value.maxAttempts.has_value() ? jni::JDouble::valueOf(value.maxAttempts.value()) : nullptr,
+        value.retryOnClientError.has_value() ? jni::JBoolean::valueOf(value.retryOnClientError.value()) : nullptr
       );
     }
   };

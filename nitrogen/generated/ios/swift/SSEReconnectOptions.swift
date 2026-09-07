@@ -18,7 +18,7 @@ public extension SSEReconnectOptions {
   /**
    * Create a new instance of `SSEReconnectOptions`.
    */
-  init(enabled: Bool?, intervalMs: Double?, maxAttempts: Double?) {
+  init(enabled: Bool?, intervalMs: Double?, maxAttempts: Double?, retryOnClientError: Bool?) {
     self.init({ () -> bridge.std__optional_bool_ in
       if let __unwrappedValue = enabled {
         return bridge.create_std__optional_bool_(__unwrappedValue)
@@ -34,6 +34,12 @@ public extension SSEReconnectOptions {
     }(), { () -> bridge.std__optional_double_ in
       if let __unwrappedValue = maxAttempts {
         return bridge.create_std__optional_double_(__unwrappedValue)
+      } else {
+        return .init()
+      }
+    }(), { () -> bridge.std__optional_bool_ in
+      if let __unwrappedValue = retryOnClientError {
+        return bridge.create_std__optional_bool_(__unwrappedValue)
       } else {
         return .init()
       }
@@ -69,6 +75,18 @@ public extension SSEReconnectOptions {
     return { () -> Double? in
       if bridge.has_value_std__optional_double_(self.__maxAttempts) {
         let __unwrapped = bridge.get_std__optional_double_(self.__maxAttempts)
+        return __unwrapped
+      } else {
+        return nil
+      }
+    }()
+  }
+  
+  @inline(__always)
+  var retryOnClientError: Bool? {
+    return { () -> Bool? in
+      if bridge.has_value_std__optional_bool_(self.__retryOnClientError) {
+        let __unwrapped = bridge.get_std__optional_bool_(self.__retryOnClientError)
         return __unwrapped
       } else {
         return nil
