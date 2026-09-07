@@ -4,7 +4,7 @@
  * @format
  */
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   FlatList,
   StatusBar,
@@ -16,8 +16,13 @@ import {
   useColorScheme,
 } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
-import { SSEClient } from 'react-native-nitro-sse-client'
-import type { SSEConnectionMetrics, SSEMessageEvent } from 'react-native-nitro-sse-client'
+import { createSSEStream } from 'react-native-nitro-sse-client'
+import type {
+  SSEConnectionMetrics,
+  SSEError,
+  SSEMessageEvent,
+  SSEStream,
+} from 'react-native-nitro-sse-client'
 
 const DEFAULT_URL = 'https://stream.wikimedia.org/v2/stream/recentchange'
 
@@ -27,11 +32,13 @@ interface LogEntry {
 }
 
 function formatMetrics(metrics: SSEConnectionMetrics): string {
-  if (metrics.phase === 'ttfb') {
-    return `time to first data: ${metrics.ttfbMs?.toFixed(1)}ms`
-  }
-  const fmt = (n?: number) => (n != null ? `${n.toFixed(1)}ms` : '-')
-  return `closed — reused=${metrics.connectionReused} connect=${fmt(metrics.connectMs)} tls=${fmt(metrics.tlsMs)} ttfb=${fmt(metrics.ttfbMs)}`
+  return `closed — connection reused: ${metrics.connectionReused}`
+}
+
+function formatError(error: SSEError): string {
+  return error.statusCode != null
+    ? `error (${error.type}, HTTP ${error.statusCode}): ${error.message}`
+    : `error (${error.type}): ${error.message}`
 }
 
 function App(): React.JSX.Element {
@@ -39,32 +46,40 @@ function App(): React.JSX.Element {
   const [url, setUrl] = useState(DEFAULT_URL)
   const [connected, setConnected] = useState(false)
   const [entries, setEntries] = useState<LogEntry[]>([])
+  const streamRef = useRef<SSEStream | null>(null)
 
   const log = useCallback((text: string) => {
     setEntries(prev => [{ id: prev.length, text }, ...prev].slice(0, 200))
   }, [])
 
   useEffect(() => {
-    SSEClient.onOpen = () => log('opened')
-    SSEClient.onMessage = (event: SSEMessageEvent) => {
+    const stream = createSSEStream()
+    streamRef.current = stream
+
+    stream.onOpen = () => log('opened')
+    stream.onMessage = (event: SSEMessageEvent) => {
       log(`message: ${event.data.slice(0, 100)}`)
     }
-    SSEClient.onError = (message: string) => log(`error: ${message}`)
-    SSEClient.onMetrics = (metrics: SSEConnectionMetrics) => log(formatMetrics(metrics))
+    stream.onError = (error: SSEError) => log(formatError(error))
+    // Fires on every disconnect — including the automatic reconnect this library does by
+    // default, so "closed" here doesn't mean the stream gave up, just that this particular
+    // connection ended.
+    stream.onClose = () => log('closed (will auto-reconnect unless disconnect() was called)')
+    stream.onMetrics = (metrics: SSEConnectionMetrics) => log(formatMetrics(metrics))
 
     return () => {
-      SSEClient.disconnect()
+      stream.disconnect()
     }
   }, [log])
 
   const handleConnect = () => {
     log(`connecting to ${url}`)
-    SSEClient.connect(url)
+    streamRef.current?.connect(url)
     setConnected(true)
   }
 
   const handleDisconnect = () => {
-    SSEClient.disconnect()
+    streamRef.current?.disconnect()
     setConnected(false)
     log('disconnected')
   }

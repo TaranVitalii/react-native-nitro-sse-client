@@ -54,14 +54,16 @@ namespace margelo::nitro::nitrosseclient {
     void setOnMessage(const std::function<void(const SSEMessageEvent& /* event */)>& onMessage) override;
     std::function<void()> getOnOpen() override;
     void setOnOpen(const std::function<void()>& onOpen) override;
-    std::function<void(const std::string& /* message */)> getOnError() override;
-    void setOnError(const std::function<void(const std::string& /* message */)>& onError) override;
+    std::function<void(const SSEError& /* error */)> getOnError() override;
+    void setOnError(const std::function<void(const SSEError& /* error */)>& onError) override;
+    std::function<void()> getOnClose() override;
+    void setOnClose(const std::function<void()>& onClose) override;
     std::function<void(const SSEConnectionMetrics& /* metrics */)> getOnMetrics() override;
     void setOnMetrics(const std::function<void(const SSEConnectionMetrics& /* metrics */)>& onMetrics) override;
 
   public:
     // Methods
-    void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session) override;
+    void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session, const std::optional<SSEReconnectOptions>& reconnect) override;
     void disconnect() override;
 
   private:

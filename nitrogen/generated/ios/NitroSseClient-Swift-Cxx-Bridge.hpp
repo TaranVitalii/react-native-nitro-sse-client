@@ -12,8 +12,14 @@
 namespace margelo::nitro::nitrosseclient { class HybridSSEClientSpec; }
 // Forward declaration of `SSEConnectionMetrics` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
+// Forward declaration of `SSEErrorType` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { enum class SSEErrorType; }
+// Forward declaration of `SSEError` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { struct SSEError; }
 // Forward declaration of `SSEMessageEvent` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEMessageEvent; }
+// Forward declaration of `SSEReconnectOptions` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { struct SSEReconnectOptions; }
 // Forward declaration of `SSESessionOptions` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 
@@ -24,7 +30,10 @@ namespace NitroSseClient { class HybridSSEClientSpec_cxx; }
 // Include C++ defined types
 #include "HybridSSEClientSpec.hpp"
 #include "SSEConnectionMetrics.hpp"
+#include "SSEError.hpp"
+#include "SSEErrorType.hpp"
 #include "SSEMessageEvent.hpp"
+#include "SSEReconnectOptions.hpp"
 #include "SSESessionOptions.hpp"
 #include <NitroModules/Result.hpp>
 #include <exception>
@@ -110,6 +119,36 @@ namespace margelo::nitro::nitrosseclient::bridge::swift {
     return optional.value();
   }
   
+  // pragma MARK: std::optional<bool>
+  /**
+   * Specialized version of `std::optional<bool>`.
+   */
+  using std__optional_bool_ = std::optional<bool>;
+  inline std::optional<bool> create_std__optional_bool_(const bool& value) noexcept {
+    return std::optional<bool>(value);
+  }
+  inline bool has_value_std__optional_bool_(const std::optional<bool>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline bool get_std__optional_bool_(const std::optional<bool>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::optional<SSEReconnectOptions>
+  /**
+   * Specialized version of `std::optional<SSEReconnectOptions>`.
+   */
+  using std__optional_SSEReconnectOptions_ = std::optional<SSEReconnectOptions>;
+  inline std::optional<SSEReconnectOptions> create_std__optional_SSEReconnectOptions_(const SSEReconnectOptions& value) noexcept {
+    return std::optional<SSEReconnectOptions>(value);
+  }
+  inline bool has_value_std__optional_SSEReconnectOptions_(const std::optional<SSEReconnectOptions>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline SSEReconnectOptions get_std__optional_SSEReconnectOptions_(const std::optional<SSEReconnectOptions>& optional) noexcept {
+    return optional.value();
+  }
+  
   // pragma MARK: std::optional<std::string>
   /**
    * Specialized version of `std::optional<std::string>`.
@@ -169,26 +208,26 @@ namespace margelo::nitro::nitrosseclient::bridge::swift {
     return Func_void_Wrapper(std::move(value));
   }
   
-  // pragma MARK: std::function<void(const std::string& /* message */)>
+  // pragma MARK: std::function<void(const SSEError& /* error */)>
   /**
-   * Specialized version of `std::function<void(const std::string&)>`.
+   * Specialized version of `std::function<void(const SSEError&)>`.
    */
-  using Func_void_std__string = std::function<void(const std::string& /* message */)>;
+  using Func_void_SSEError = std::function<void(const SSEError& /* error */)>;
   /**
-   * Wrapper class for a `std::function<void(const std::string& / * message * /)>`, this can be used from Swift.
+   * Wrapper class for a `std::function<void(const SSEError& / * error * /)>`, this can be used from Swift.
    */
-  class Func_void_std__string_Wrapper final {
+  class Func_void_SSEError_Wrapper final {
   public:
-    explicit Func_void_std__string_Wrapper(std::function<void(const std::string& /* message */)>&& func): _function(std::make_unique<std::function<void(const std::string& /* message */)>>(std::move(func))) {}
-    inline void call(std::string message) const noexcept {
-      _function->operator()(message);
+    explicit Func_void_SSEError_Wrapper(std::function<void(const SSEError& /* error */)>&& func): _function(std::make_unique<std::function<void(const SSEError& /* error */)>>(std::move(func))) {}
+    inline void call(SSEError error) const noexcept {
+      _function->operator()(error);
     }
   private:
-    std::unique_ptr<std::function<void(const std::string& /* message */)>> _function;
+    std::unique_ptr<std::function<void(const SSEError& /* error */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_std__string create_Func_void_std__string(void* NON_NULL swiftClosureWrapper) noexcept;
-  inline Func_void_std__string_Wrapper wrap_Func_void_std__string(Func_void_std__string value) noexcept {
-    return Func_void_std__string_Wrapper(std::move(value));
+  Func_void_SSEError create_Func_void_SSEError(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_SSEError_Wrapper wrap_Func_void_SSEError(Func_void_SSEError value) noexcept {
+    return Func_void_SSEError_Wrapper(std::move(value));
   }
   
   // pragma MARK: std::function<void(const SSEConnectionMetrics& /* metrics */)>

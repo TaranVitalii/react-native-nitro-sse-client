@@ -1,5 +1,7 @@
 package com.margelo.nitro.nitrosseclient
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import okhttp3.Call
 import okhttp3.Callback
@@ -11,12 +13,19 @@ import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
+import okio.Buffer
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Proxy
+import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
 
 private const val LOG_TAG = "NativeSSE"
+private const val DEFAULT_RECONNECT_INTERVAL_MS = 3000.0
+
+// Error responses (4xx/5xx) are typically small JSON/HTML bodies — bounded so a misbehaving
+// server streaming an enormous error page can't grow this unboundedly before completion.
+private const val MAX_ERROR_BODY_BYTES = 8192L
 
 private class CallTimings {
   var connectStart: Long? = null
@@ -117,24 +126,64 @@ private object SharedClient {
 class HybridSSEClient : HybridSSEClientSpec() {
   override var onMessage: (event: SSEMessageEvent) -> Unit = {}
   override var onOpen: () -> Unit = {}
-  override var onError: (message: String) -> Unit = {}
+  override var onError: (error: SSEError) -> Unit = {}
+  override var onClose: () -> Unit = {}
   override var onMetrics: (metrics: SSEConnectionMetrics) -> Unit = {}
 
   private var currentCall: Call? = null
   private var connectStartedAt: Long? = null
   private var firstByteLogged = false
 
-  override fun connect(url: String, headers: Map<String, String>?, session: SSESessionOptions?) {
+  // Reconnect state. connectUrl/connectHeaders/connectSession are remembered so an automatic
+  // reconnect can repeat the same connect() call; reconnectEnabled/reconnectMaxAttempts come
+  // from the caller's SSEReconnectOptions, resolved once per explicit connect(). currentIntervalMs
+  // starts at options.intervalMs (default 3s) and is overridden per-stream by a `retry:` field
+  // from the server; it resets back to the option's value on the next *explicit* connect().
+  private var connectUrl: String? = null
+  private var connectHeaders: Map<String, String>? = null
+  private var connectSession: SSESessionOptions? = null
+  private var reconnectEnabled = true
+  private var reconnectMaxAttempts: Double? = null
+  private var currentIntervalMs = DEFAULT_RECONNECT_INTERVAL_MS
+  private var reconnectAttempts = 0
+  private val mainHandler = Handler(Looper.getMainLooper())
+  private var pendingReconnect: Runnable? = null
+  // Set by disconnect(), cleared at the start of every explicit connect() — distinguishes "the
+  // caller asked us to stop" from a connection merely ending, which is what schedules a retry.
+  private var intentionallyStopped = false
+  private var lastEventId: String? = null
+
+  override fun connect(url: String, headers: Map<String, String>?, session: SSESessionOptions?, reconnect: SSEReconnectOptions?) {
     // Validated before touching any existing connection, so a bad URL on a reconnect attempt
     // doesn't tear down a connection that was working fine — and reported through onError like
     // any other connection failure, rather than left to crash as an uncaught IllegalArgumentException.
-    val requestBuilder = try {
+    try {
       Request.Builder().url(url)
     } catch (e: IllegalArgumentException) {
       Log.e(LOG_TAG, "invalid URL: $url", e)
-      onError("Invalid URL: $url")
+      onError(SSEError("Invalid URL: $url", SSEErrorType.EXCEPTION, null))
       return
     }
+
+    pendingReconnect?.let { mainHandler.removeCallbacks(it) }
+    pendingReconnect = null
+    intentionallyStopped = false
+    reconnectAttempts = 0
+    lastEventId = null
+
+    connectUrl = url
+    connectHeaders = headers
+    connectSession = session
+    reconnectEnabled = reconnect?.enabled ?: true
+    currentIntervalMs = reconnect?.intervalMs ?: DEFAULT_RECONNECT_INTERVAL_MS
+    reconnectMaxAttempts = reconnect?.maxAttempts
+
+    performConnect(isReconnect = false)
+  }
+
+  private fun performConnect(isReconnect: Boolean) {
+    val url = connectUrl ?: return
+    val requestBuilder = Request.Builder().url(url)
 
     currentCall?.let { emitCloseMetrics(it) }
     currentCall?.cancel()
@@ -152,11 +201,16 @@ class HybridSSEClient : HybridSSEClientSpec() {
 
     // Applied after the defaults above, so a caller can override Accept/User-Agent too if they
     // need to — e.g. Authorization for a protected endpoint.
-    headers?.forEach { (key, value) -> requestBuilder.header(key, value) }
+    connectHeaders?.forEach { (key, value) -> requestBuilder.header(key, value) }
+
+    // Only sent on an automatic reconnect that has actually seen an id: field — an explicit
+    // connect() always starts a fresh logical session (see lastEventId reset in connect()).
+    if (isReconnect) {
+      lastEventId?.let { requestBuilder.header("Last-Event-ID", it) }
+    }
 
     val request = requestBuilder.build()
-
-    val call = SharedClient.get(session).newCall(request)
+    val call = SharedClient.get(connectSession).newCall(request)
     currentCall = call
 
     call.enqueue(object : Callback {
@@ -169,6 +223,19 @@ class HybridSSEClient : HybridSSEClientSpec() {
           response.close()
           return
         }
+
+        if (!response.isSuccessful) {
+          val statusCode = response.code
+          val bodyString = readBoundedBody(response)
+          response.close()
+          Log.e(LOG_TAG, "HTTP error: $statusCode")
+          onError(SSEError(bodyString, SSEErrorType.HTTP, statusCode.toDouble()))
+          onClose()
+          scheduleReconnectIfNeeded()
+          return
+        }
+
+        reconnectAttempts = 0
         onOpen()
         try {
           val source = response.body?.source()
@@ -195,10 +262,22 @@ class HybridSSEClient : HybridSSEClientSpec() {
             }
           }
         } catch (e: IOException) {
-          // Stream ended, or was cancelled by disconnect()/a superseding connect() — expected.
+          // Cancelled by disconnect()/a superseding connect() — expected, already handled
+          // elsewhere (disconnect() fires onClose synchronously; a superseding call's own
+          // lifecycle governs). Anything else reaching here is a genuine mid-stream failure.
+          if (!call.isCanceled() && call === currentCall) {
+            Log.e(LOG_TAG, "connection dropped: ${e.message}", e)
+            val type = if (e is SocketTimeoutException) SSEErrorType.TIMEOUT else SSEErrorType.NETWORK
+            onError(SSEError(e.message ?: e.toString(), type, null))
+          }
         } finally {
           emitCloseMetrics(call)
           response.close()
+        }
+
+        if (call === currentCall) {
+          onClose()
+          scheduleReconnectIfNeeded()
         }
       }
 
@@ -209,15 +288,49 @@ class HybridSSEClient : HybridSSEClientSpec() {
         // superseded shouldn't surface as "the current connection failed" — it isn't, anymore.
         if (call !== currentCall) return
         Log.e(LOG_TAG, "connect failed: ${e.message}", e)
-        onError(e.message ?: e.toString())
+        val type = if (e is SocketTimeoutException) SSEErrorType.TIMEOUT else SSEErrorType.NETWORK
+        onError(SSEError(e.message ?: e.toString(), type, null))
+        onClose()
+        scheduleReconnectIfNeeded()
       }
     })
   }
 
+  private fun readBoundedBody(response: Response): String {
+    val source = response.body?.source() ?: return ""
+    return try {
+      val buffer = Buffer()
+      while (buffer.size < MAX_ERROR_BODY_BYTES && !source.exhausted()) {
+        val read = source.read(buffer, MAX_ERROR_BODY_BYTES - buffer.size)
+        if (read == -1L) break
+      }
+      buffer.readUtf8()
+    } catch (e: IOException) {
+      ""
+    }
+  }
+
+  private fun scheduleReconnectIfNeeded() {
+    if (!reconnectEnabled || intentionallyStopped) return
+    reconnectMaxAttempts?.let { max -> if (reconnectAttempts >= max) return }
+    reconnectAttempts += 1
+
+    val runnable = Runnable {
+      if (!intentionallyStopped) performConnect(isReconnect = true)
+    }
+    pendingReconnect = runnable
+    mainHandler.postDelayed(runnable, currentIntervalMs.toLong())
+  }
+
   override fun disconnect() {
+    pendingReconnect?.let { mainHandler.removeCallbacks(it) }
+    pendingReconnect = null
+    intentionallyStopped = true
     currentCall?.let { emitCloseMetrics(it) }
+    val hadActiveCall = currentCall != null
     currentCall?.cancel()
     currentCall = null
+    if (hadActiveCall) onClose()
   }
 
   // Called by Nitro when the JS side releases this object (GC), or explicitly via
@@ -225,6 +338,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
   // disconnect()/destroy() would leave its call running against the shared client forever.
   override fun dispose() {
     super.dispose()
+    pendingReconnect?.let { mainHandler.removeCallbacks(it) }
     currentCall?.cancel()
   }
 
@@ -249,7 +363,16 @@ class HybridSSEClient : HybridSSEClientSpec() {
         line.startsWith("id:") -> id = line.removePrefix("id:").trim()
         line.startsWith("event:") -> eventName = line.removePrefix("event:").trim()
         line.startsWith("data:") -> dataLines.add(line.removePrefix("data:").trim())
+        line.startsWith("retry:") -> {
+          line.removePrefix("retry:").trim().toDoubleOrNull()?.let { currentIntervalMs = it }
+        }
       }
+    }
+
+    // An `id:` field (even empty) updates lastEventId for the *next* reconnect's Last-Event-ID
+    // header — empty resets it to unset, matching the SSE spec. Absent leaves it unchanged.
+    if (id != null) {
+      lastEventId = id.ifEmpty { null }
     }
 
     if (dataLines.isEmpty()) return

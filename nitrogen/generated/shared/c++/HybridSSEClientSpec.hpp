@@ -15,18 +15,24 @@
 
 // Forward declaration of `SSEMessageEvent` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEMessageEvent; }
+// Forward declaration of `SSEError` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { struct SSEError; }
 // Forward declaration of `SSEConnectionMetrics` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
 // Forward declaration of `SSESessionOptions` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
+// Forward declaration of `SSEReconnectOptions` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { struct SSEReconnectOptions; }
 
 #include "SSEMessageEvent.hpp"
 #include <functional>
-#include <string>
+#include "SSEError.hpp"
 #include "SSEConnectionMetrics.hpp"
+#include <string>
 #include <unordered_map>
 #include <optional>
 #include "SSESessionOptions.hpp"
+#include "SSEReconnectOptions.hpp"
 
 namespace margelo::nitro::nitrosseclient {
 
@@ -59,14 +65,16 @@ namespace margelo::nitro::nitrosseclient {
       virtual void setOnMessage(const std::function<void(const SSEMessageEvent& /* event */)>& onMessage) = 0;
       virtual std::function<void()> getOnOpen() = 0;
       virtual void setOnOpen(const std::function<void()>& onOpen) = 0;
-      virtual std::function<void(const std::string& /* message */)> getOnError() = 0;
-      virtual void setOnError(const std::function<void(const std::string& /* message */)>& onError) = 0;
+      virtual std::function<void(const SSEError& /* error */)> getOnError() = 0;
+      virtual void setOnError(const std::function<void(const SSEError& /* error */)>& onError) = 0;
+      virtual std::function<void()> getOnClose() = 0;
+      virtual void setOnClose(const std::function<void()>& onClose) = 0;
       virtual std::function<void(const SSEConnectionMetrics& /* metrics */)> getOnMetrics() = 0;
       virtual void setOnMetrics(const std::function<void(const SSEConnectionMetrics& /* metrics */)>& onMetrics) = 0;
 
     public:
       // Methods
-      virtual void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session) = 0;
+      virtual void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session, const std::optional<SSEReconnectOptions>& reconnect) = 0;
       virtual void disconnect() = 0;
 
     protected:

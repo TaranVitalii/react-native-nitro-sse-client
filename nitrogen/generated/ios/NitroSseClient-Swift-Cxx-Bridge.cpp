@@ -30,11 +30,11 @@ namespace margelo::nitro::nitrosseclient::bridge::swift {
     };
   }
   
-  // pragma MARK: std::function<void(const std::string& /* message */)>
-  Func_void_std__string create_Func_void_std__string(void* NON_NULL swiftClosureWrapper) noexcept {
-    auto swiftClosure = NitroSseClient::Func_void_std__string::fromUnsafe(swiftClosureWrapper);
-    return [swiftClosure = std::move(swiftClosure)](const std::string& message) mutable -> void {
-      swiftClosure.call(message);
+  // pragma MARK: std::function<void(const SSEError& /* error */)>
+  Func_void_SSEError create_Func_void_SSEError(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = NitroSseClient::Func_void_SSEError::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const SSEError& error) mutable -> void {
+      swiftClosure.call(error);
     };
   }
   

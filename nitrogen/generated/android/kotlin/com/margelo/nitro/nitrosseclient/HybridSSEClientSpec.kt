@@ -54,18 +54,32 @@ abstract class HybridSSEClientSpec: HybridObject() {
       onOpen = value
     }
   
-  abstract var onError: (message: String) -> Unit
+  abstract var onError: (error: SSEError) -> Unit
   
-  private var onError_cxx: Func_void_std__string
+  private var onError_cxx: Func_void_SSEError
     @Keep
     @DoNotStrip
     get() {
-      return Func_void_std__string_java(onError)
+      return Func_void_SSEError_java(onError)
     }
     @Keep
     @DoNotStrip
     set(value) {
       onError = value
+    }
+  
+  abstract var onClose: () -> Unit
+  
+  private var onClose_cxx: Func_void
+    @Keep
+    @DoNotStrip
+    get() {
+      return Func_void_java(onClose)
+    }
+    @Keep
+    @DoNotStrip
+    set(value) {
+      onClose = value
     }
   
   abstract var onMetrics: (metrics: SSEConnectionMetrics) -> Unit
@@ -85,7 +99,7 @@ abstract class HybridSSEClientSpec: HybridObject() {
   // Methods
   @DoNotStrip
   @Keep
-  abstract fun connect(url: String, headers: Map<String, String>?, session: SSESessionOptions?): Unit
+  abstract fun connect(url: String, headers: Map<String, String>?, session: SSESessionOptions?, reconnect: SSEReconnectOptions?): Unit
   
   @DoNotStrip
   @Keep

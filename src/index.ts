@@ -2,12 +2,17 @@ import { NitroModules } from 'react-native-nitro-modules'
 import type {
   SSEClient as SSEClientSpec,
   SSEConnectionMetrics,
+  SSEError,
   SSEMessageEvent as NativeSSEMessageEvent,
+  SSEReconnectOptions,
   SSESessionOptions,
 } from './specs/SSEClient.nitro'
 
 export type {
   SSEConnectionMetrics,
+  SSEError,
+  SSEErrorType,
+  SSEReconnectOptions,
   SSESessionOptions,
   SSEClient as SSEClientSpec,
 } from './specs/SSEClient.nitro'
@@ -30,6 +35,9 @@ export interface SSEConnectOptions {
   headers?: Record<string, string>
   /** Only takes effect on the first connect() made across all streams — see configureSSESession(). */
   session?: SSESessionOptions
+  /** Automatic reconnect after the connection ends (error, or the server closing the stream).
+   * On by default — see SSEReconnectOptions. */
+  reconnect?: SSEReconnectOptions
 }
 
 let sharedSessionCreated = false
@@ -63,8 +71,12 @@ export function configureSSESession(options: SSESessionOptions): void {
 /**
  * One independently connect()-able/disconnect()-able SSE stream, backed by its own Nitro
  * HybridObject instance. Create as many as you need — each gets its own connection and its own
- * `onMessage`/`onOpen`/`onError`/`onMetrics` callbacks; they all share the same underlying
- * URLSession/OkHttpClient, so reconnecting one doesn't disturb the others.
+ * `onMessage`/`onOpen`/`onError`/`onClose`/`onMetrics` callbacks; they all share the same
+ * underlying URLSession/OkHttpClient, so reconnecting one doesn't disturb the others.
+ *
+ * Reconnects automatically after the connection ends for any reason other than disconnect()
+ * (mirrors browser EventSource / react-native-sse) — disable via `connect(url, { reconnect: {
+ * enabled: false } })` if you'd rather handle that yourself.
  */
 export class SSEStream {
   private readonly native: SSEClientSpec =
@@ -80,8 +92,14 @@ export class SSEStream {
     this.native.onOpen = callback
   }
 
-  set onError(callback: (message: string) => void) {
+  set onError(callback: (error: SSEError) => void) {
     this.native.onError = callback
+  }
+
+  /** Fires whenever the connection ends, for any reason — a normal server-side close, an error
+   * (right after onError), or an explicit disconnect(). */
+  set onClose(callback: () => void) {
+    this.native.onClose = callback
   }
 
   set onMetrics(callback: (metrics: SSEConnectionMetrics) => void) {
@@ -105,7 +123,7 @@ export class SSEStream {
       )
     }
     sharedSessionCreated = true
-    this.native.connect(url, options?.headers, session)
+    this.native.connect(url, options?.headers, session, options?.reconnect)
   }
 
   disconnect(): void {
