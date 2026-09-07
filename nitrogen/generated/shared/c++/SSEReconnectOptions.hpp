@@ -45,11 +45,12 @@ namespace margelo::nitro::nitrosseclient {
     std::optional<double> jitterFactor     SWIFT_PRIVATE;
     std::optional<double> maxAttempts     SWIFT_PRIVATE;
     std::optional<bool> retryOnClientError     SWIFT_PRIVATE;
+    std::optional<double> heartbeatTimeoutMs     SWIFT_PRIVATE;
     std::optional<bool> monitorNetwork     SWIFT_PRIVATE;
 
   public:
     SSEReconnectOptions() = default;
-    explicit SSEReconnectOptions(std::optional<bool> enabled, std::optional<double> intervalMs, std::optional<double> maxIntervalMs, std::optional<double> jitterFactor, std::optional<double> maxAttempts, std::optional<bool> retryOnClientError, std::optional<bool> monitorNetwork): enabled(enabled), intervalMs(intervalMs), maxIntervalMs(maxIntervalMs), jitterFactor(jitterFactor), maxAttempts(maxAttempts), retryOnClientError(retryOnClientError), monitorNetwork(monitorNetwork) {}
+    explicit SSEReconnectOptions(std::optional<bool> enabled, std::optional<double> intervalMs, std::optional<double> maxIntervalMs, std::optional<double> jitterFactor, std::optional<double> maxAttempts, std::optional<bool> retryOnClientError, std::optional<double> heartbeatTimeoutMs, std::optional<bool> monitorNetwork): enabled(enabled), intervalMs(intervalMs), maxIntervalMs(maxIntervalMs), jitterFactor(jitterFactor), maxAttempts(maxAttempts), retryOnClientError(retryOnClientError), heartbeatTimeoutMs(heartbeatTimeoutMs), monitorNetwork(monitorNetwork) {}
 
   public:
     friend bool operator==(const SSEReconnectOptions& lhs, const SSEReconnectOptions& rhs) = default;
@@ -71,6 +72,7 @@ namespace margelo::nitro {
         JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "jitterFactor"))),
         JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "maxAttempts"))),
         JSIConverter<std::optional<bool>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "retryOnClientError"))),
+        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "heartbeatTimeoutMs"))),
         JSIConverter<std::optional<bool>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "monitorNetwork")))
       );
     }
@@ -82,6 +84,7 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "jitterFactor"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.jitterFactor));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "maxAttempts"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.maxAttempts));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "retryOnClientError"), JSIConverter<std::optional<bool>>::toJSI(runtime, arg.retryOnClientError));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "heartbeatTimeoutMs"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.heartbeatTimeoutMs));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "monitorNetwork"), JSIConverter<std::optional<bool>>::toJSI(runtime, arg.monitorNetwork));
       return obj;
     }
@@ -99,6 +102,7 @@ namespace margelo::nitro {
       if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "jitterFactor")))) return false;
       if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "maxAttempts")))) return false;
       if (!JSIConverter<std::optional<bool>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "retryOnClientError")))) return false;
+      if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "heartbeatTimeoutMs")))) return false;
       if (!JSIConverter<std::optional<bool>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "monitorNetwork")))) return false;
       return true;
     }

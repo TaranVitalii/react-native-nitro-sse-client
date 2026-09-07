@@ -38,6 +38,9 @@ data class SSEReconnectOptions(
   val retryOnClientError: Boolean?,
   @DoNotStrip
   @Keep
+  val heartbeatTimeoutMs: Double?,
+  @DoNotStrip
+  @Keep
   val monitorNetwork: Boolean?
 ) {
   /* primary constructor */
@@ -51,6 +54,7 @@ data class SSEReconnectOptions(
       && Objects.deepEquals(this.jitterFactor, other.jitterFactor)
       && Objects.deepEquals(this.maxAttempts, other.maxAttempts)
       && Objects.deepEquals(this.retryOnClientError, other.retryOnClientError)
+      && Objects.deepEquals(this.heartbeatTimeoutMs, other.heartbeatTimeoutMs)
       && Objects.deepEquals(this.monitorNetwork, other.monitorNetwork)
   }
 
@@ -62,6 +66,7 @@ data class SSEReconnectOptions(
       jitterFactor,
       maxAttempts,
       retryOnClientError,
+      heartbeatTimeoutMs,
       monitorNetwork
     ).contentDeepHashCode()
   }
@@ -74,8 +79,8 @@ data class SSEReconnectOptions(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(enabled: Boolean?, intervalMs: Double?, maxIntervalMs: Double?, jitterFactor: Double?, maxAttempts: Double?, retryOnClientError: Boolean?, monitorNetwork: Boolean?): SSEReconnectOptions {
-      return SSEReconnectOptions(enabled, intervalMs, maxIntervalMs, jitterFactor, maxAttempts, retryOnClientError, monitorNetwork)
+    private fun fromCpp(enabled: Boolean?, intervalMs: Double?, maxIntervalMs: Double?, jitterFactor: Double?, maxAttempts: Double?, retryOnClientError: Boolean?, heartbeatTimeoutMs: Double?, monitorNetwork: Boolean?): SSEReconnectOptions {
+      return SSEReconnectOptions(enabled, intervalMs, maxIntervalMs, jitterFactor, maxAttempts, retryOnClientError, heartbeatTimeoutMs, monitorNetwork)
     }
   }
 }

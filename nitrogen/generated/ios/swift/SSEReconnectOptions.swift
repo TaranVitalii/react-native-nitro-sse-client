@@ -18,7 +18,7 @@ public extension SSEReconnectOptions {
   /**
    * Create a new instance of `SSEReconnectOptions`.
    */
-  init(enabled: Bool?, intervalMs: Double?, maxIntervalMs: Double?, jitterFactor: Double?, maxAttempts: Double?, retryOnClientError: Bool?, monitorNetwork: Bool?) {
+  init(enabled: Bool?, intervalMs: Double?, maxIntervalMs: Double?, jitterFactor: Double?, maxAttempts: Double?, retryOnClientError: Bool?, heartbeatTimeoutMs: Double?, monitorNetwork: Bool?) {
     self.init({ () -> bridge.std__optional_bool_ in
       if let __unwrappedValue = enabled {
         return bridge.create_std__optional_bool_(__unwrappedValue)
@@ -52,6 +52,12 @@ public extension SSEReconnectOptions {
     }(), { () -> bridge.std__optional_bool_ in
       if let __unwrappedValue = retryOnClientError {
         return bridge.create_std__optional_bool_(__unwrappedValue)
+      } else {
+        return .init()
+      }
+    }(), { () -> bridge.std__optional_double_ in
+      if let __unwrappedValue = heartbeatTimeoutMs {
+        return bridge.create_std__optional_double_(__unwrappedValue)
       } else {
         return .init()
       }
@@ -129,6 +135,18 @@ public extension SSEReconnectOptions {
     return { () -> Bool? in
       if bridge.has_value_std__optional_bool_(self.__retryOnClientError) {
         let __unwrapped = bridge.get_std__optional_bool_(self.__retryOnClientError)
+        return __unwrapped
+      } else {
+        return nil
+      }
+    }()
+  }
+  
+  @inline(__always)
+  var heartbeatTimeoutMs: Double? {
+    return { () -> Double? in
+      if bridge.has_value_std__optional_double_(self.__heartbeatTimeoutMs) {
+        let __unwrapped = bridge.get_std__optional_double_(self.__heartbeatTimeoutMs)
         return __unwrapped
       } else {
         return nil

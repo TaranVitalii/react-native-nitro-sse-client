@@ -38,6 +38,7 @@ namespace NitroSseClient { class HybridSSEClientSpec_cxx; }
 #include "SSEMessageEvent.hpp"
 #include "SSEReconnectOptions.hpp"
 #include "SSESessionOptions.hpp"
+#include <NitroModules/AnyMap.hpp>
 #include <NitroModules/Promise.hpp>
 #include <NitroModules/PromiseHolder.hpp>
 #include <NitroModules/Result.hpp>
@@ -166,6 +167,21 @@ namespace margelo::nitro::nitrosseclient::bridge::swift {
     return optional.has_value();
   }
   inline std::string get_std__optional_std__string_(const std::optional<std::string>& optional) noexcept {
+    return optional.value();
+  }
+  
+  // pragma MARK: std::optional<std::shared_ptr<AnyMap>>
+  /**
+   * Specialized version of `std::optional<std::shared_ptr<AnyMap>>`.
+   */
+  using std__optional_std__shared_ptr_AnyMap__ = std::optional<std::shared_ptr<AnyMap>>;
+  inline std::optional<std::shared_ptr<AnyMap>> create_std__optional_std__shared_ptr_AnyMap__(const std::shared_ptr<AnyMap>& value) noexcept {
+    return std::optional<std::shared_ptr<AnyMap>>(value);
+  }
+  inline bool has_value_std__optional_std__shared_ptr_AnyMap__(const std::optional<std::shared_ptr<AnyMap>>& optional) noexcept {
+    return optional.has_value();
+  }
+  inline std::shared_ptr<AnyMap> get_std__optional_std__shared_ptr_AnyMap__(const std::optional<std::shared_ptr<AnyMap>>& optional) noexcept {
     return optional.value();
   }
   

@@ -277,7 +277,7 @@ open class HybridSSEClientSpec_cxx {
 
   // Methods
   @inline(__always)
-  public final func connect(url: std.string, headers: bridge.std__optional_std__unordered_map_std__string__std__string__, session: bridge.std__optional_SSESessionOptions_, reconnect: bridge.std__optional_SSEReconnectOptions_, httpMethod: bridge.std__optional_std__string_, body: bridge.std__optional_std__string_, validateContentType: bridge.std__optional_bool_) -> bridge.Result_void_ {
+  public final func connect(url: std.string, headers: bridge.std__optional_std__unordered_map_std__string__std__string__, session: bridge.std__optional_SSESessionOptions_, reconnect: bridge.std__optional_SSEReconnectOptions_, httpMethod: bridge.std__optional_std__string_, body: bridge.std__optional_std__string_, validateContentType: bridge.std__optional_bool_, autoParseJSON: bridge.std__optional_bool_) -> bridge.Result_void_ {
     do {
       try self.__implementation.connect(url: String(url), headers: { () -> Dictionary<String, String>? in
         if bridge.has_value_std__optional_std__unordered_map_std__string__std__string__(headers) {
@@ -311,6 +311,13 @@ open class HybridSSEClientSpec_cxx {
       }(), validateContentType: { () -> Bool? in
         if bridge.has_value_std__optional_bool_(validateContentType) {
           let __unwrapped = bridge.get_std__optional_bool_(validateContentType)
+          return __unwrapped
+        } else {
+          return nil
+        }
+      }(), autoParseJSON: { () -> Bool? in
+        if bridge.has_value_std__optional_bool_(autoParseJSON) {
+          let __unwrapped = bridge.get_std__optional_bool_(autoParseJSON)
           return __unwrapped
         } else {
           return nil

@@ -1,4 +1,5 @@
 import { NitroModules } from 'react-native-nitro-modules'
+import type { AnyMap } from 'react-native-nitro-modules'
 import type {
   SSEClient as SSEClientSpec,
   SSEConnectionMetrics,
@@ -27,6 +28,12 @@ export interface SSEMessageEvent {
   event: string
   data: string
   timestampMs: number
+  /** When SSEConnectOptions.autoParseJSON is true, and `data` is valid JSON whose top-level value
+   * is an object, this holds the already-parsed result — parsed natively so `JSON.parse(data)`
+   * doesn't have to run again on the JS thread for every message. Undefined if autoParseJSON is
+   * off, or if `data` isn't a JSON object (invalid JSON, or a bare array/string/number at the top
+   * level — rare in practice for SSE payloads). */
+  parsedData?: AnyMap
 }
 
 // SSE frames with no `event:` field are filed under this key, matching how browser EventSource
@@ -50,6 +57,9 @@ export interface SSEConnectOptions {
    * reported via onError (type 'invalid-content-type') instead of being treated as open. Set
    * false for a server that's valid SSE but sends a different/no Content-Type. */
   validateContentType?: boolean
+  /** Default false. When true, every SSEMessageEvent whose `data` is a JSON object also gets
+   * `parsedData` populated — see SSEMessageEvent.parsedData. */
+  autoParseJSON?: boolean
 }
 
 let sharedSessionCreated = false
@@ -173,7 +183,8 @@ export class SSEStream {
       options?.reconnect,
       options?.method,
       options?.body,
-      options?.validateContentType
+      options?.validateContentType,
+      options?.autoParseJSON
     )
   }
 

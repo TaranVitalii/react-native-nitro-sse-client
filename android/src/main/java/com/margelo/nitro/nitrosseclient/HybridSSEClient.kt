@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.margelo.nitro.NitroModules
+import com.margelo.nitro.core.AnyMap
 import com.margelo.nitro.core.Promise
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,9 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okio.Buffer
+import org.json.JSONArray
+import org.json.JSONObject
+import org.json.JSONTokener
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Proxy
@@ -199,6 +203,16 @@ class HybridSSEClient : HybridSSEClientSpec() {
   // that hasn't even been attempted yet.
   private var hasNetworkConnectivity: Boolean? = null
 
+  // Heartbeat watchdog (SSEReconnectOptions.heartbeatTimeoutMs). A self-resetting "dead man's
+  // switch": every complete line read (including a bare `:` heartbeat comment, which never
+  // reaches parseAndEmit as a message) reschedules this via resetHeartbeatWatchdog() — if it
+  // ever actually fires, no data of any kind arrived within the window, so the connection is
+  // presumed dead.
+  private var heartbeatTimeoutMs: Double? = null
+  private var heartbeatWatchdog: Runnable? = null
+
+  private var shouldAutoParseJSON = false
+
   override fun connect(
     url: String,
     headers: Map<String, String>?,
@@ -206,7 +220,8 @@ class HybridSSEClient : HybridSSEClientSpec() {
     reconnect: SSEReconnectOptions?,
     httpMethod: String?,
     body: String?,
-    validateContentType: Boolean?
+    validateContentType: Boolean?,
+    autoParseJSON: Boolean?
   ) {
     // Validated before touching any existing connection, so a bad URL on a reconnect attempt
     // doesn't tear down a connection that was working fine — and reported through onError like
@@ -238,6 +253,8 @@ class HybridSSEClient : HybridSSEClientSpec() {
     reconnectMaxAttempts = reconnect?.maxAttempts
     retryOnClientError = reconnect?.retryOnClientError ?: false
     monitorNetworkEnabled = reconnect?.monitorNetwork ?: true
+    heartbeatTimeoutMs = reconnect?.heartbeatTimeoutMs
+    shouldAutoParseJSON = autoParseJSON ?: false
 
     startNetworkMonitoringIfNeeded()
     setState(SSEConnectionState.CONNECTING)
@@ -327,6 +344,50 @@ class HybridSSEClient : HybridSSEClientSpec() {
     performConnect(isReconnect = true)
   }
 
+  // Cancels any pending watchdog and, if heartbeatTimeoutMs is set, schedules a fresh one — call
+  // this on every sign of life (the first onOpen, and every subsequent complete line read) to
+  // keep pushing the deadline out. Left disabled (no-op beyond the cancel) when
+  // heartbeatTimeoutMs is null, which is the default. Safe to call from any thread — Handler's
+  // post/postDelayed/removeCallbacks are all thread-safe — since the reading loop that calls this
+  // runs on OkHttp's dispatcher thread, not the main thread the watchdog itself fires on.
+  private fun resetHeartbeatWatchdog() {
+    heartbeatWatchdog?.let { mainHandler.removeCallbacks(it) }
+    heartbeatWatchdog = null
+    val timeoutMs = heartbeatTimeoutMs ?: return
+    val watchdog = Runnable { handleHeartbeatTimeout() }
+    heartbeatWatchdog = watchdog
+    mainHandler.postDelayed(watchdog, timeoutMs.toLong())
+  }
+
+  private fun stopHeartbeatWatchdog() {
+    heartbeatWatchdog?.let { mainHandler.removeCallbacks(it) }
+    heartbeatWatchdog = null
+  }
+
+  // Only ever runs if nothing else already ended this connection first (a real completion/error,
+  // or disconnect()/a superseding connect() — all of which call stopHeartbeatWatchdog(), which
+  // removes this Runnable from the Handler's queue outright, so a stale watchdog from an
+  // already-ended connection can never reach here). Treated exactly like any other transport
+  // failure: torn down and reported synchronously here, same as disconnect() does, rather than
+  // relying on the reading loop's own IOException handling, which treats a cancelled call as an
+  // already-handled no-op by design.
+  private fun handleHeartbeatTimeout() {
+    val call = currentCall ?: return
+    currentCall = null
+    call.cancel()
+    val timeoutMs = heartbeatTimeoutMs ?: 0.0
+    Log.e(LOG_TAG, "heartbeat timeout — no data for ${timeoutMs}ms, treating connection as dead")
+    onError(
+      SSEError(
+        "No data received for ${timeoutMs.toInt()}ms — connection appears dead",
+        SSEErrorType.TIMEOUT,
+        null
+      )
+    )
+    onClose()
+    scheduleReconnectIfNeeded(httpStatus = null, wasContentTypeError = false)
+  }
+
   private fun performConnect(isReconnect: Boolean) {
     if (connectUrl == null) return
 
@@ -336,6 +397,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
     // during the onBeforeRequest await below, fails the `call !== currentCall` identity guard the
     // same way it would if we'd already moved on to a new call.
     currentCall = null
+    stopHeartbeatWatchdog()
 
     connectGeneration += 1
     val attemptGeneration = connectGeneration
@@ -426,6 +488,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
         reconnectAttempts = 0
         setState(SSEConnectionState.OPEN)
         onOpen()
+        resetHeartbeatWatchdog()
         try {
           val source = response.body?.source()
           if (source == null) {
@@ -441,6 +504,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
               loggedFirstByte = true
             }
             val line = source.readUtf8Line() ?: break
+            resetHeartbeatWatchdog()
             if (line.isEmpty()) {
               if (eventBuffer.isNotEmpty()) {
                 parseAndEmit(eventBuffer.toString())
@@ -581,6 +645,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
     currentCall?.cancel()
     currentCall = null
     stopNetworkMonitoring()
+    stopHeartbeatWatchdog()
     setState(SSEConnectionState.CLOSED)
     if (hadActiveCall) onClose()
   }
@@ -593,6 +658,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
     pendingReconnect?.let { mainHandler.removeCallbacks(it) }
     currentCall?.cancel()
     stopNetworkMonitoring()
+    stopHeartbeatWatchdog()
     coroutineScope.cancel()
   }
 
@@ -631,9 +697,48 @@ class HybridSSEClient : HybridSSEClientSpec() {
 
     if (dataLines.isEmpty()) return
 
+    val joinedData = dataLines.joinToString("\n")
+    val parsedData = if (shouldAutoParseJSON) tryParseJSONObject(joinedData) else null
     onMessage(
-      SSEMessageEvent(id, eventName, dataLines.joinToString("\n"), System.currentTimeMillis().toDouble())
+      SSEMessageEvent(id, eventName, joinedData, System.currentTimeMillis().toDouble(), parsedData)
     )
+  }
+
+  // org.json has no built-in "convert to plain Kotlin Map/List" walk — JSONObject/JSONArray stay
+  // as their own boxed types otherwise, which AnyMap.fromMap() doesn't know how to unwrap.
+  // JSONObject.NULL is a sentinel object (not Kotlin null) for an explicit JSON `null` value;
+  // mapped to real null here so AnyMap represents it correctly instead of storing the sentinel.
+  private fun jsonToAny(value: Any?): Any? {
+    return when (value) {
+      null, JSONObject.NULL -> null
+      is JSONObject -> {
+        val map = mutableMapOf<String, Any?>()
+        val keys = value.keys()
+        while (keys.hasNext()) {
+          val key = keys.next()
+          map[key] = jsonToAny(value.get(key))
+        }
+        map
+      }
+      is JSONArray -> (0 until value.length()).map { jsonToAny(value.get(it)) }
+      else -> value
+    }
+  }
+
+  // Mirrors iOS's tryParseJSONObject: only a top-level JSON *object* counts (a bare array/string/
+  // number/etc. returns null, matching AnyMap's own container-only shape). Best-effort — any
+  // parse failure (invalid JSON, wrong top-level type) is swallowed and reported as "not parsed"
+  // rather than as an error, since malformed data on one message shouldn't disrupt the stream.
+  private fun tryParseJSONObject(text: String): AnyMap? {
+    return try {
+      val parsed = JSONTokener(text).nextValue()
+      if (parsed !is JSONObject) return null
+      @Suppress("UNCHECKED_CAST")
+      val map = jsonToAny(parsed) as? Map<String, Any?> ?: return null
+      AnyMap.fromMap(map, true)
+    } catch (e: Exception) {
+      null
+    }
   }
 
   private fun emitCloseMetrics(call: Call) {
