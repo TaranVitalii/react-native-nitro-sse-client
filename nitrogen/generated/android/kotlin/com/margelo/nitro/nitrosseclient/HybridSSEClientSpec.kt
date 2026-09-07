@@ -95,6 +95,20 @@ abstract class HybridSSEClientSpec: HybridObject() {
     set(value) {
       onMetrics = value
     }
+  
+  abstract var onStateChange: (state: SSEConnectionState) -> Unit
+  
+  private var onStateChange_cxx: Func_void_SSEConnectionState
+    @Keep
+    @DoNotStrip
+    get() {
+      return Func_void_SSEConnectionState_java(onStateChange)
+    }
+    @Keep
+    @DoNotStrip
+    set(value) {
+      onStateChange = value
+    }
 
   // Methods
   @DoNotStrip

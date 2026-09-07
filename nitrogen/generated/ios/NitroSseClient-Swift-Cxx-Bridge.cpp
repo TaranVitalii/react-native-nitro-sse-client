@@ -46,6 +46,14 @@ namespace margelo::nitro::nitrosseclient::bridge::swift {
     };
   }
   
+  // pragma MARK: std::function<void(SSEConnectionState /* state */)>
+  Func_void_SSEConnectionState create_Func_void_SSEConnectionState(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = NitroSseClient::Func_void_SSEConnectionState::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](SSEConnectionState state) mutable -> void {
+      swiftClosure.call(static_cast<int>(state));
+    };
+  }
+  
   // pragma MARK: std::shared_ptr<HybridSSEClientSpec>
   std::shared_ptr<HybridSSEClientSpec> create_std__shared_ptr_HybridSSEClientSpec_(void* NON_NULL swiftUnsafePointer) noexcept {
     NitroSseClient::HybridSSEClientSpec_cxx swiftPart = NitroSseClient::HybridSSEClientSpec_cxx::fromUnsafe(swiftUnsafePointer);

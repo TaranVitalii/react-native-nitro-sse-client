@@ -66,6 +66,8 @@ private enum SharedSession {
 }
 
 private let defaultReconnectIntervalMs: Double = 3000
+private let defaultMaxReconnectIntervalMs: Double = 30000
+private let defaultJitterFactor: Double = 0.5
 // Error responses (4xx/5xx) are typically small JSON/HTML bodies — bounded so a misbehaving
 // server streaming an enormous error page can't grow this unboundedly before completion.
 private let maxErrorBodyBytes = 8192
@@ -76,6 +78,7 @@ class HybridSSEClient: HybridSSEClientSpec {
   var onError: (SSEError) -> Void = { _ in }
   var onClose: () -> Void = { }
   var onMetrics: (SSEConnectionMetrics) -> Void = { _ in }
+  var onStateChange: (SSEConnectionState) -> Void = { _ in }
 
   private let streamDelegate = SSEStreamDelegate()
 
@@ -112,12 +115,15 @@ class HybridSSEClient: HybridSSEClientSpec {
   private var reconnectMaxAttempts: Double?
   private var retryOnClientError = false
   private var currentIntervalMs = defaultReconnectIntervalMs
+  private var maxIntervalMs = defaultMaxReconnectIntervalMs
+  private var jitterFactor = defaultJitterFactor
   private var reconnectAttempts = 0
   private var pendingReconnect: DispatchWorkItem?
   // Set by disconnect(), cleared at the start of every explicit connect() — distinguishes "the
   // caller asked us to stop" from a connection merely ending, which is what schedules a retry.
   private var intentionallyStopped = false
   private var lastEventId: String?
+  private var currentState: SSEConnectionState = .idle
 
   public override init() {
     super.init()
@@ -155,10 +161,22 @@ class HybridSSEClient: HybridSSEClientSpec {
     shouldValidateContentType = validateContentType ?? true
     reconnectEnabled = reconnect?.enabled ?? true
     currentIntervalMs = reconnect?.intervalMs ?? defaultReconnectIntervalMs
+    maxIntervalMs = reconnect?.maxIntervalMs ?? defaultMaxReconnectIntervalMs
+    jitterFactor = reconnect?.jitterFactor ?? defaultJitterFactor
     reconnectMaxAttempts = reconnect?.maxAttempts
     retryOnClientError = reconnect?.retryOnClientError ?? false
 
+    setState(.connecting)
     performConnect(isReconnect: false)
+  }
+
+  // Only fires onStateChange when the state actually changes — callers can transition through
+  // the same state repeatedly (e.g. scheduleReconnectIfNeeded on every failed attempt) without
+  // spamming duplicate events.
+  private func setState(_ newState: SSEConnectionState) {
+    guard currentState != newState else { return }
+    currentState = newState
+    onStateChange(newState)
   }
 
   private func performConnect(isReconnect: Bool) {
@@ -220,6 +238,7 @@ class HybridSSEClient: HybridSSEClientSpec {
     let hadActiveTask = currentTask != nil
     currentTask?.cancel()
     currentTask = nil
+    setState(.closed)
     if hadActiveTask {
       onClose()
     }
@@ -243,6 +262,7 @@ class HybridSSEClient: HybridSSEClientSpec {
 
     guard let httpResponse = response as? HTTPURLResponse else {
       reconnectAttempts = 0
+      setState(.open)
       onOpen()
       return
     }
@@ -266,6 +286,7 @@ class HybridSSEClient: HybridSSEClientSpec {
     }
 
     reconnectAttempts = 0
+    setState(.open)
     onOpen()
   }
 
@@ -348,17 +369,43 @@ class HybridSSEClient: HybridSSEClientSpec {
   }
 
   private func scheduleReconnectIfNeeded(afterHttpStatus statusCode: Int?, wasContentTypeError: Bool) {
-    guard reconnectEnabled, !intentionallyStopped else { return }
-    guard isRetryableByDefault(httpStatus: statusCode, wasContentTypeError: wasContentTypeError) else { return }
-    if let maxAttempts = reconnectMaxAttempts, Double(reconnectAttempts) >= maxAttempts { return }
+    guard !intentionallyStopped else { return }
+    guard reconnectEnabled else {
+      setState(.closed)
+      return
+    }
+    guard isRetryableByDefault(httpStatus: statusCode, wasContentTypeError: wasContentTypeError) else {
+      setState(.failed)
+      return
+    }
+    if let maxAttempts = reconnectMaxAttempts, Double(reconnectAttempts) >= maxAttempts {
+      setState(.failed)
+      return
+    }
+
+    let delayMs = nextReconnectDelayMs(attempt: reconnectAttempts)
     reconnectAttempts += 1
+    setState(.reconnecting)
 
     let work = DispatchWorkItem { [weak self] in
       guard let self, !self.intentionallyStopped else { return }
       self.performConnect(isReconnect: true)
     }
     pendingReconnect = work
-    DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + currentIntervalMs / 1000, execute: work)
+    DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + delayMs / 1000, execute: work)
+  }
+
+  // Exponential backoff with jitter: delay doubles with each consecutive failed attempt, starting
+  // from currentIntervalMs (the base interval, or the server's last `retry:` value) and capped at
+  // maxIntervalMs, then randomized by jitterFactor to avoid many clients retrying in lockstep
+  // after a shared outage. `attempt` is 0 for the first scheduled reconnect (so it starts at
+  // exactly currentIntervalMs before jitter), 1 for the second (2x), 2 for the third (4x), etc.
+  private func nextReconnectDelayMs(attempt: Int) -> Double {
+    let exponential = min(currentIntervalMs * pow(2, Double(attempt)), maxIntervalMs)
+    guard jitterFactor > 0 else { return exponential }
+    let spread = exponential * jitterFactor
+    let jittered = exponential - spread / 2 + Double.random(in: 0...spread)
+    return max(0, min(jittered, maxIntervalMs))
   }
 
   fileprivate func handleMetrics(_ metrics: URLSessionTaskMetrics) {

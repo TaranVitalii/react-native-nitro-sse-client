@@ -15,6 +15,7 @@ public protocol HybridSSEClientSpec_protocol: HybridObject {
   var onError: (_ error: SSEError) -> Void { get set }
   var onClose: () -> Void { get set }
   var onMetrics: (_ metrics: SSEConnectionMetrics) -> Void { get set }
+  var onStateChange: (_ state: SSEConnectionState) -> Void { get set }
 
   // Methods
   func connect(url: String, headers: Dictionary<String, String>?, session: SSESessionOptions?, reconnect: SSEReconnectOptions?, httpMethod: String?, body: String?, validateContentType: Bool?) throws -> Void

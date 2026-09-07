@@ -19,6 +19,8 @@ namespace margelo::nitro::nitrosseclient { struct SSEMessageEvent; }
 namespace margelo::nitro::nitrosseclient { struct SSEError; }
 // Forward declaration of `SSEConnectionMetrics` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
+// Forward declaration of `SSEConnectionState` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { enum class SSEConnectionState; }
 // Forward declaration of `SSESessionOptions` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 // Forward declaration of `SSEReconnectOptions` to properly resolve imports.
@@ -28,6 +30,7 @@ namespace margelo::nitro::nitrosseclient { struct SSEReconnectOptions; }
 #include <functional>
 #include "SSEError.hpp"
 #include "SSEConnectionMetrics.hpp"
+#include "SSEConnectionState.hpp"
 #include <string>
 #include <unordered_map>
 #include <optional>
@@ -71,6 +74,8 @@ namespace margelo::nitro::nitrosseclient {
       virtual void setOnClose(const std::function<void()>& onClose) = 0;
       virtual std::function<void(const SSEConnectionMetrics& /* metrics */)> getOnMetrics() = 0;
       virtual void setOnMetrics(const std::function<void(const SSEConnectionMetrics& /* metrics */)>& onMetrics) = 0;
+      virtual std::function<void(SSEConnectionState /* state */)> getOnStateChange() = 0;
+      virtual void setOnStateChange(const std::function<void(SSEConnectionState /* state */)>& onStateChange) = 0;
 
     public:
       // Methods

@@ -41,12 +41,14 @@ namespace margelo::nitro::nitrosseclient {
   public:
     std::optional<bool> enabled     SWIFT_PRIVATE;
     std::optional<double> intervalMs     SWIFT_PRIVATE;
+    std::optional<double> maxIntervalMs     SWIFT_PRIVATE;
+    std::optional<double> jitterFactor     SWIFT_PRIVATE;
     std::optional<double> maxAttempts     SWIFT_PRIVATE;
     std::optional<bool> retryOnClientError     SWIFT_PRIVATE;
 
   public:
     SSEReconnectOptions() = default;
-    explicit SSEReconnectOptions(std::optional<bool> enabled, std::optional<double> intervalMs, std::optional<double> maxAttempts, std::optional<bool> retryOnClientError): enabled(enabled), intervalMs(intervalMs), maxAttempts(maxAttempts), retryOnClientError(retryOnClientError) {}
+    explicit SSEReconnectOptions(std::optional<bool> enabled, std::optional<double> intervalMs, std::optional<double> maxIntervalMs, std::optional<double> jitterFactor, std::optional<double> maxAttempts, std::optional<bool> retryOnClientError): enabled(enabled), intervalMs(intervalMs), maxIntervalMs(maxIntervalMs), jitterFactor(jitterFactor), maxAttempts(maxAttempts), retryOnClientError(retryOnClientError) {}
 
   public:
     friend bool operator==(const SSEReconnectOptions& lhs, const SSEReconnectOptions& rhs) = default;
@@ -64,6 +66,8 @@ namespace margelo::nitro {
       return margelo::nitro::nitrosseclient::SSEReconnectOptions(
         JSIConverter<std::optional<bool>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "enabled"))),
         JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "intervalMs"))),
+        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "maxIntervalMs"))),
+        JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "jitterFactor"))),
         JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "maxAttempts"))),
         JSIConverter<std::optional<bool>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "retryOnClientError")))
       );
@@ -72,6 +76,8 @@ namespace margelo::nitro {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "enabled"), JSIConverter<std::optional<bool>>::toJSI(runtime, arg.enabled));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "intervalMs"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.intervalMs));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "maxIntervalMs"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.maxIntervalMs));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "jitterFactor"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.jitterFactor));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "maxAttempts"), JSIConverter<std::optional<double>>::toJSI(runtime, arg.maxAttempts));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "retryOnClientError"), JSIConverter<std::optional<bool>>::toJSI(runtime, arg.retryOnClientError));
       return obj;
@@ -86,6 +92,8 @@ namespace margelo::nitro {
       }
       if (!JSIConverter<std::optional<bool>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "enabled")))) return false;
       if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "intervalMs")))) return false;
+      if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "maxIntervalMs")))) return false;
+      if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "jitterFactor")))) return false;
       if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "maxAttempts")))) return false;
       if (!JSIConverter<std::optional<bool>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "retryOnClientError")))) return false;
       return true;

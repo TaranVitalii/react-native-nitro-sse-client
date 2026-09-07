@@ -18,7 +18,7 @@ public extension SSEReconnectOptions {
   /**
    * Create a new instance of `SSEReconnectOptions`.
    */
-  init(enabled: Bool?, intervalMs: Double?, maxAttempts: Double?, retryOnClientError: Bool?) {
+  init(enabled: Bool?, intervalMs: Double?, maxIntervalMs: Double?, jitterFactor: Double?, maxAttempts: Double?, retryOnClientError: Bool?) {
     self.init({ () -> bridge.std__optional_bool_ in
       if let __unwrappedValue = enabled {
         return bridge.create_std__optional_bool_(__unwrappedValue)
@@ -27,6 +27,18 @@ public extension SSEReconnectOptions {
       }
     }(), { () -> bridge.std__optional_double_ in
       if let __unwrappedValue = intervalMs {
+        return bridge.create_std__optional_double_(__unwrappedValue)
+      } else {
+        return .init()
+      }
+    }(), { () -> bridge.std__optional_double_ in
+      if let __unwrappedValue = maxIntervalMs {
+        return bridge.create_std__optional_double_(__unwrappedValue)
+      } else {
+        return .init()
+      }
+    }(), { () -> bridge.std__optional_double_ in
+      if let __unwrappedValue = jitterFactor {
         return bridge.create_std__optional_double_(__unwrappedValue)
       } else {
         return .init()
@@ -63,6 +75,30 @@ public extension SSEReconnectOptions {
     return { () -> Double? in
       if bridge.has_value_std__optional_double_(self.__intervalMs) {
         let __unwrapped = bridge.get_std__optional_double_(self.__intervalMs)
+        return __unwrapped
+      } else {
+        return nil
+      }
+    }()
+  }
+  
+  @inline(__always)
+  var maxIntervalMs: Double? {
+    return { () -> Double? in
+      if bridge.has_value_std__optional_double_(self.__maxIntervalMs) {
+        let __unwrapped = bridge.get_std__optional_double_(self.__maxIntervalMs)
+        return __unwrapped
+      } else {
+        return nil
+      }
+    }()
+  }
+  
+  @inline(__always)
+  var jitterFactor: Double? {
+    return { () -> Double? in
+      if bridge.has_value_std__optional_double_(self.__jitterFactor) {
+        let __unwrapped = bridge.get_std__optional_double_(self.__jitterFactor)
         return __unwrapped
       } else {
         return nil

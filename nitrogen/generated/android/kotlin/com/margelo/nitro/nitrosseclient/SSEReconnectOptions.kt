@@ -26,6 +26,12 @@ data class SSEReconnectOptions(
   val intervalMs: Double?,
   @DoNotStrip
   @Keep
+  val maxIntervalMs: Double?,
+  @DoNotStrip
+  @Keep
+  val jitterFactor: Double?,
+  @DoNotStrip
+  @Keep
   val maxAttempts: Double?,
   @DoNotStrip
   @Keep
@@ -38,6 +44,8 @@ data class SSEReconnectOptions(
     if (other !is SSEReconnectOptions) return false
     return Objects.deepEquals(this.enabled, other.enabled)
       && Objects.deepEquals(this.intervalMs, other.intervalMs)
+      && Objects.deepEquals(this.maxIntervalMs, other.maxIntervalMs)
+      && Objects.deepEquals(this.jitterFactor, other.jitterFactor)
       && Objects.deepEquals(this.maxAttempts, other.maxAttempts)
       && Objects.deepEquals(this.retryOnClientError, other.retryOnClientError)
   }
@@ -46,6 +54,8 @@ data class SSEReconnectOptions(
     return arrayOf<Any?>(
       enabled,
       intervalMs,
+      maxIntervalMs,
+      jitterFactor,
       maxAttempts,
       retryOnClientError
     ).contentDeepHashCode()
@@ -59,8 +69,8 @@ data class SSEReconnectOptions(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(enabled: Boolean?, intervalMs: Double?, maxAttempts: Double?, retryOnClientError: Boolean?): SSEReconnectOptions {
-      return SSEReconnectOptions(enabled, intervalMs, maxAttempts, retryOnClientError)
+    private fun fromCpp(enabled: Boolean?, intervalMs: Double?, maxIntervalMs: Double?, jitterFactor: Double?, maxAttempts: Double?, retryOnClientError: Boolean?): SSEReconnectOptions {
+      return SSEReconnectOptions(enabled, intervalMs, maxIntervalMs, jitterFactor, maxAttempts, retryOnClientError)
     }
   }
 }

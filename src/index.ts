@@ -2,6 +2,7 @@ import { NitroModules } from 'react-native-nitro-modules'
 import type {
   SSEClient as SSEClientSpec,
   SSEConnectionMetrics,
+  SSEConnectionState,
   SSEError,
   SSEMessageEvent as NativeSSEMessageEvent,
   SSEReconnectOptions,
@@ -10,6 +11,7 @@ import type {
 
 export type {
   SSEConnectionMetrics,
+  SSEConnectionState,
   SSEError,
   SSEErrorType,
   SSEReconnectOptions,
@@ -92,6 +94,18 @@ export class SSEStream {
   private readonly native: SSEClientSpec =
     NitroModules.createHybridObject<SSEClientSpec>('SSEClient')
 
+  // Tracked internally (regardless of whether the caller ever sets onStateChange) so getState()
+  // has an answer synchronously, without a round-trip to native.
+  private cachedState: SSEConnectionState = 'idle'
+  private userOnStateChange?: (state: SSEConnectionState) => void
+
+  constructor() {
+    this.native.onStateChange = (state: SSEConnectionState) => {
+      this.cachedState = state
+      this.userOnStateChange?.(state)
+    }
+  }
+
   set onMessage(callback: (event: SSEMessageEvent) => void) {
     this.native.onMessage = (event: NativeSSEMessageEvent) => {
       callback({ ...event, event: event.event ?? DEFAULT_MESSAGE_TYPE })
@@ -114,6 +128,17 @@ export class SSEStream {
 
   set onMetrics(callback: (metrics: SSEConnectionMetrics) => void) {
     this.native.onMetrics = callback
+  }
+
+  /** Fires on every connection-state transition — see SSEConnectionState. */
+  set onStateChange(callback: (state: SSEConnectionState) => void) {
+    this.userOnStateChange = callback
+  }
+
+  /** The stream's current connection state — see SSEConnectionState. Always up to date; doesn't
+   * require an onStateChange listener to be registered. */
+  getState(): SSEConnectionState {
+    return this.cachedState
   }
 
   connect(url: string, options?: SSEConnectOptions): void {

@@ -66,18 +66,32 @@ export interface SSEError {
 /**
  * Governs automatic reconnection after a connection ends for any reason (error, or the server
  * closing the stream) other than an explicit disconnect(). Mirrors the browser EventSource /
- * react-native-sse model: reconnect is on by default, at a flat interval the server can override
- * per-stream via an SSE `retry:` field (no exponential backoff).
+ * react-native-sse model, with exponential backoff + jitter layered on top (see intervalMs,
+ * maxIntervalMs, jitterFactor) rather than react-native-sse's flat delay.
  */
 export interface SSEReconnectOptions {
   /** Default true. */
   enabled?: boolean
   /**
-   * Delay before the first/next reconnect attempt, in ms. Default 3000. A `retry:` field in the
+   * Base delay before the first reconnect attempt, in ms. Default 3000. A `retry:` field in the
    * stream overrides this for that stream's subsequent reconnects (until connect() is called
-   * again explicitly, which resets it back to this value).
+   * again explicitly, which resets it back to this value). Each consecutive failed attempt after
+   * the first doubles the delay (see maxIntervalMs, jitterFactor) — this is the starting point,
+   * not a flat per-attempt delay.
    */
   intervalMs?: number
+  /**
+   * Cap on the exponential backoff delay, in ms. Default 30000. Once doubling from intervalMs
+   * would exceed this, the delay stays at this value for every subsequent attempt.
+   */
+  maxIntervalMs?: number
+  /**
+   * Randomizes each computed backoff delay by this fraction (0.0-1.0), so e.g. a jitterFactor of
+   * 0.5 turns a computed 4000ms delay into a random value in [3000, 5000]. Default 0.5 — this
+   * spreads out reconnect attempts from many clients hitting the same outage at once ("thundering
+   * herd"), so they don't all retry in lockstep. 0 disables jitter (exact exponential delay).
+   */
+  jitterFactor?: number
   /**
    * Stop reconnecting after this many consecutive failed attempts. Default undefined (retry
    * forever). Resets to 0 after any successful onOpen.
@@ -93,6 +107,27 @@ export interface SSEReconnectOptions {
    */
   retryOnClientError?: boolean
 }
+
+/**
+ * 'idle': never connected, or destroy()ed — the initial state.
+ * 'connecting': an explicit connect() call's first attempt is in flight, before its first
+ * onOpen/onError.
+ * 'open': the connection is live, after onOpen.
+ * 'reconnecting': an automatic retry is pending (waiting out the backoff delay) or in flight,
+ * after the connection ended for a reason SSEReconnectOptions allows retrying.
+ * 'closed': ended intentionally — an explicit disconnect(), or the connection ended while
+ * reconnect.enabled was false.
+ * 'failed': automatic reconnect gave up on this connect() session — either a non-retryable error
+ * (see SSEReconnectOptions.retryOnClientError) or reconnect.maxAttempts was reached. A fresh
+ * connect() call is needed to try again.
+ */
+export type SSEConnectionState =
+  | 'idle'
+  | 'connecting'
+  | 'open'
+  | 'reconnecting'
+  | 'closed'
+  | 'failed'
 
 export interface SSEClient
   extends HybridObject<{ ios: 'swift'; android: 'kotlin' }> {
@@ -123,4 +158,7 @@ export interface SSEClient
    * superseded by a newer connect() before they ever opened. */
   onClose: () => void
   onMetrics: (metrics: SSEConnectionMetrics) => void
+  /** Fires on every state transition — see SSEConnectionState. Only fires when the state actually
+   * changes (no duplicate events for the same state). */
+  onStateChange: (state: SSEConnectionState) => void
 }
