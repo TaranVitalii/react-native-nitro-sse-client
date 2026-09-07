@@ -25,6 +25,8 @@ public extension SSEConnectionState {
         self = .open
       case "reconnecting":
         self = .reconnecting
+      case "paused":
+        self = .paused
       case "closed":
         self = .closed
       case "failed":
@@ -47,6 +49,8 @@ public extension SSEConnectionState {
         return "open"
       case .reconnecting:
         return "reconnecting"
+      case .paused:
+        return "paused"
       case .closed:
         return "closed"
       case .failed:

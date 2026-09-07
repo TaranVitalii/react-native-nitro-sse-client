@@ -1,8 +1,12 @@
 package com.margelo.nitro.nitrosseclient
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.margelo.nitro.NitroModules
 import com.margelo.nitro.core.Promise
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -183,6 +187,18 @@ class HybridSSEClient : HybridSSEClientSpec() {
   private var connectGeneration = 0
   private val coroutineScope = CoroutineScope(Dispatchers.Default + Job())
 
+  // Network-aware pause/resume (SSEReconnectOptions.monitorNetwork). One NetworkCallback per
+  // stream, registered on the first connect() and unregistered on disconnect()/dispose() —
+  // simpler and safer than a shared/broadcast callback across every HybridSSEClient instance, at
+  // the cost of one lightweight callback per concurrent stream (never many in practice).
+  private var networkCallback: ConnectivityManager.NetworkCallback? = null
+  private var monitorNetworkEnabled = true
+  // null until the callback's first event establishes a baseline — that first callback is
+  // ignored for triggering pause/resume (only later *changes* from the baseline do), so a
+  // callback that happens to fire while already offline doesn't immediately pause a connect()
+  // that hasn't even been attempted yet.
+  private var hasNetworkConnectivity: Boolean? = null
+
   override fun connect(
     url: String,
     headers: Map<String, String>?,
@@ -221,7 +237,9 @@ class HybridSSEClient : HybridSSEClientSpec() {
     jitterFactor = reconnect?.jitterFactor ?: DEFAULT_JITTER_FACTOR
     reconnectMaxAttempts = reconnect?.maxAttempts
     retryOnClientError = reconnect?.retryOnClientError ?: false
+    monitorNetworkEnabled = reconnect?.monitorNetwork ?: true
 
+    startNetworkMonitoringIfNeeded()
     setState(SSEConnectionState.CONNECTING)
     performConnect(isReconnect = false)
   }
@@ -233,6 +251,80 @@ class HybridSSEClient : HybridSSEClientSpec() {
     if (currentState == newState) return
     currentState = newState
     onStateChange(newState)
+  }
+
+  // Only actually registers anything when network-aware pause/resume is meaningful: monitoring
+  // is pointless if reconnectEnabled is false (there's no automatic reconnection to protect). A
+  // no-op if a callback from an earlier connect() on this stream is already registered.
+  private fun startNetworkMonitoringIfNeeded() {
+    if (!monitorNetworkEnabled || !reconnectEnabled || networkCallback != null) return
+    val connectivityManager = NitroModules.applicationContext
+      ?.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+      ?: return
+
+    val callback = object : ConnectivityManager.NetworkCallback() {
+      override fun onAvailable(network: Network) = updateConnectivity(true)
+      // registerDefaultNetworkCallback's onLost only fires once there's no default network at
+      // all (a transport switch, e.g. WiFi -> cellular, fires onAvailable for the new default
+      // instead) — so this already means "no connectivity", no extra check needed.
+      override fun onLost(network: Network) = updateConnectivity(false)
+    }
+    try {
+      connectivityManager.registerDefaultNetworkCallback(callback)
+      networkCallback = callback
+    } catch (e: Exception) {
+      Log.e(LOG_TAG, "failed to register network callback", e)
+    }
+  }
+
+  private fun updateConnectivity(connected: Boolean) {
+    val previous = hasNetworkConnectivity
+    hasNetworkConnectivity = connected
+    // Ignore the initial baseline callback — reacting to it caused exactly this kind of bug in
+    // the library we borrowed this feature's design from (an immediate, spurious restart from
+    // the first status report racing with the stream's own first connect attempt).
+    if (previous == null || previous == connected) return
+    if (connected) handleNetworkRestored() else handleNetworkLost()
+  }
+
+  private fun stopNetworkMonitoring() {
+    val callback = networkCallback ?: return
+    networkCallback = null
+    hasNetworkConnectivity = null
+    val connectivityManager = NitroModules.applicationContext
+      ?.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+    try {
+      connectivityManager.unregisterNetworkCallback(callback)
+    } catch (e: Exception) {
+      // Already unregistered, or never fully registered — nothing to clean up.
+    }
+  }
+
+  // Proactively tears down whatever's currently happening (an open connection, or a reconnect
+  // already in flight/pending) and pauses, rather than waiting for OkHttp/the OS to eventually
+  // notice the dead network via a timeout.
+  private fun handleNetworkLost() {
+    if (!monitorNetworkEnabled || intentionallyStopped || currentState == SSEConnectionState.PAUSED) return
+    pendingReconnect?.let { mainHandler.removeCallbacks(it) }
+    pendingReconnect = null
+    // Invalidates any attempt still in its onBeforeRequest await (i.e. connecting/reconnecting
+    // but with no call yet) — without this, that attempt's guard back in performConnect would
+    // still pass and it would go on to fire a request moments after we've just paused.
+    connectGeneration += 1
+    currentCall?.let { emitCloseMetrics(it) }
+    val hadActiveCall = currentCall != null
+    currentCall?.cancel()
+    currentCall = null
+    setState(SSEConnectionState.PAUSED)
+    if (hadActiveCall) onClose()
+  }
+
+  // Reconnects immediately (no backoff delay) with a fresh attempt budget — a real connectivity
+  // restoration is a strong positive signal, distinct from a repeated failure of the same kind.
+  private fun handleNetworkRestored() {
+    if (!monitorNetworkEnabled || intentionallyStopped || currentState != SSEConnectionState.PAUSED) return
+    reconnectAttempts = 0
+    performConnect(isReconnect = true)
   }
 
   private fun performConnect(isReconnect: Boolean) {
@@ -446,6 +538,15 @@ class HybridSSEClient : HybridSSEClientSpec() {
         return
       }
     }
+    // No point starting a backoff timer into a network that's currently down — pause and let
+    // handleNetworkRestored() reconnect immediately once it's back. hasNetworkConnectivity being
+    // null (no baseline established yet) is treated as "assume connected", same as monitoring
+    // being disabled — this path only ever downgrades an attempt we'd otherwise make, never
+    // blocks one outright.
+    if (monitorNetworkEnabled && hasNetworkConnectivity == false) {
+      setState(SSEConnectionState.PAUSED)
+      return
+    }
 
     val delayMs = nextReconnectDelayMs(reconnectAttempts)
     reconnectAttempts += 1
@@ -479,6 +580,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
     val hadActiveCall = currentCall != null
     currentCall?.cancel()
     currentCall = null
+    stopNetworkMonitoring()
     setState(SSEConnectionState.CLOSED)
     if (hadActiveCall) onClose()
   }
@@ -490,6 +592,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
     super.dispose()
     pendingReconnect?.let { mainHandler.removeCallbacks(it) }
     currentCall?.cancel()
+    stopNetworkMonitoring()
     coroutineScope.cancel()
   }
 
