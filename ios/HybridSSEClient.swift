@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Network
 import NitroModules
 
 /// Forwards URLSession delegate callbacks to the HybridSSEClient instance that owns the task.
@@ -133,6 +134,18 @@ class HybridSSEClient: HybridSSEClientSpec {
   // connect()/reconnect during that async gap doesn't go on to fire its (now stale) request.
   private var connectGeneration = 0
 
+  // Network-aware pause/resume (SSEReconnectOptions.monitorNetwork). One NWPathMonitor per
+  // stream, started on the first connect() and torn down on disconnect()/dispose() — simpler and
+  // safer than a shared/broadcast monitor across every HybridSSEClient instance, at the cost of
+  // one lightweight monitor per concurrent stream (never many in practice).
+  private var networkMonitor: NWPathMonitor?
+  private var monitorNetworkEnabled = true
+  // nil until the monitor's first path update establishes a baseline — that first callback is
+  // ignored for triggering pause/resume (only later *changes* from the baseline do), so a monitor
+  // that happens to start while already offline doesn't immediately pause a connect() that hasn't
+  // even been attempted yet.
+  private var hasNetworkConnectivity: Bool?
+
   public override init() {
     super.init()
     streamDelegate.client = self
@@ -173,9 +186,70 @@ class HybridSSEClient: HybridSSEClientSpec {
     jitterFactor = reconnect?.jitterFactor ?? defaultJitterFactor
     reconnectMaxAttempts = reconnect?.maxAttempts
     retryOnClientError = reconnect?.retryOnClientError ?? false
+    monitorNetworkEnabled = reconnect?.monitorNetwork ?? true
 
+    startNetworkMonitoringIfNeeded()
     setState(.connecting)
     performConnect(isReconnect: false)
+  }
+
+  // Only actually starts anything when network-aware pause/resume is meaningful: monitoring is
+  // pointless if reconnectEnabled is false (there's no automatic reconnection to protect). A
+  // no-op if a monitor from an earlier connect() on this stream is already running.
+  private func startNetworkMonitoringIfNeeded() {
+    guard monitorNetworkEnabled, reconnectEnabled, networkMonitor == nil else { return }
+    let monitor = NWPathMonitor()
+    monitor.pathUpdateHandler = { [weak self] path in
+      guard let self else { return }
+      let connected = path.status == .satisfied
+      let previous = self.hasNetworkConnectivity
+      self.hasNetworkConnectivity = connected
+      // Ignore the initial baseline callback — reacting to it caused exactly this kind of bug in
+      // the library we borrowed this feature's design from (an immediate, spurious restart from
+      // NWPathMonitor's first status report racing with the stream's own first connect attempt).
+      guard let previous, previous != connected else { return }
+      if connected {
+        self.handleNetworkRestored()
+      } else {
+        self.handleNetworkLost()
+      }
+    }
+    monitor.start(queue: DispatchQueue(label: "com.nitrosseclient.networkmonitor"))
+    networkMonitor = monitor
+  }
+
+  private func stopNetworkMonitoring() {
+    networkMonitor?.cancel()
+    networkMonitor = nil
+    hasNetworkConnectivity = nil
+  }
+
+  // Proactively tears down whatever's currently happening (an open connection, or a reconnect
+  // already in flight/pending) and pauses, rather than waiting for the OS to eventually notice
+  // the dead network via a timeout.
+  private func handleNetworkLost() {
+    guard monitorNetworkEnabled, !intentionallyStopped, currentState != .paused else { return }
+    pendingReconnect?.cancel()
+    pendingReconnect = nil
+    // Invalidates any attempt still in its onBeforeRequest await (i.e. connecting/reconnecting
+    // but with no task yet) — without this, that attempt's guard back in performConnect would
+    // still pass and it would go on to fire a request moments after we've just paused.
+    connectGeneration += 1
+    let hadActiveTask = currentTask != nil
+    currentTask?.cancel()
+    currentTask = nil
+    setState(.paused)
+    if hadActiveTask {
+      onClose()
+    }
+  }
+
+  // Reconnects immediately (no backoff delay) with a fresh attempt budget — a real connectivity
+  // restoration is a strong positive signal, distinct from a repeated failure of the same kind.
+  private func handleNetworkRestored() {
+    guard monitorNetworkEnabled, !intentionallyStopped, currentState == .paused else { return }
+    reconnectAttempts = 0
+    performConnect(isReconnect: true)
   }
 
   // Only fires onStateChange when the state actually changes — callers can transition through
@@ -276,6 +350,7 @@ class HybridSSEClient: HybridSSEClientSpec {
     let hadActiveTask = currentTask != nil
     currentTask?.cancel()
     currentTask = nil
+    stopNetworkMonitoring()
     setState(.closed)
     if hadActiveTask {
       onClose()
@@ -290,6 +365,7 @@ class HybridSSEClient: HybridSSEClientSpec {
   func dispose() {
     pendingReconnect?.cancel()
     currentTask?.cancel()
+    stopNetworkMonitoring()
   }
 
   fileprivate func handleResponse(task: URLSessionTask, response: URLResponse) {
@@ -418,6 +494,15 @@ class HybridSSEClient: HybridSSEClientSpec {
     }
     if let maxAttempts = reconnectMaxAttempts, Double(reconnectAttempts) >= maxAttempts {
       setState(.failed)
+      return
+    }
+    // No point starting a backoff timer into a network that's currently down — pause and let
+    // handleNetworkRestored() reconnect immediately once it's back. hasNetworkConnectivity being
+    // nil (no baseline established yet) is treated as "assume connected", same as monitoring
+    // being disabled — this path only ever downgrades an attempt we'd otherwise make, never blocks
+    // one outright.
+    if monitorNetworkEnabled, hasNetworkConnectivity == false {
+      setState(.paused)
       return
     }
 

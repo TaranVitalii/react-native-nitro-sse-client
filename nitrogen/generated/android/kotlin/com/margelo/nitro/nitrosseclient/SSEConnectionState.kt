@@ -20,8 +20,9 @@ enum class SSEConnectionState(@DoNotStrip @Keep val value: Int) {
   CONNECTING(1),
   OPEN(2),
   RECONNECTING(3),
-  CLOSED(4),
-  FAILED(5);
+  PAUSED(4),
+  CLOSED(5),
+  FAILED(6);
 
   companion object
 }

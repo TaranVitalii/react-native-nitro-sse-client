@@ -18,7 +18,7 @@ public extension SSEReconnectOptions {
   /**
    * Create a new instance of `SSEReconnectOptions`.
    */
-  init(enabled: Bool?, intervalMs: Double?, maxIntervalMs: Double?, jitterFactor: Double?, maxAttempts: Double?, retryOnClientError: Bool?) {
+  init(enabled: Bool?, intervalMs: Double?, maxIntervalMs: Double?, jitterFactor: Double?, maxAttempts: Double?, retryOnClientError: Bool?, monitorNetwork: Bool?) {
     self.init({ () -> bridge.std__optional_bool_ in
       if let __unwrappedValue = enabled {
         return bridge.create_std__optional_bool_(__unwrappedValue)
@@ -51,6 +51,12 @@ public extension SSEReconnectOptions {
       }
     }(), { () -> bridge.std__optional_bool_ in
       if let __unwrappedValue = retryOnClientError {
+        return bridge.create_std__optional_bool_(__unwrappedValue)
+      } else {
+        return .init()
+      }
+    }(), { () -> bridge.std__optional_bool_ in
+      if let __unwrappedValue = monitorNetwork {
         return bridge.create_std__optional_bool_(__unwrappedValue)
       } else {
         return .init()
@@ -123,6 +129,18 @@ public extension SSEReconnectOptions {
     return { () -> Bool? in
       if bridge.has_value_std__optional_bool_(self.__retryOnClientError) {
         let __unwrapped = bridge.get_std__optional_bool_(self.__retryOnClientError)
+        return __unwrapped
+      } else {
+        return nil
+      }
+    }()
+  }
+  
+  @inline(__always)
+  var monitorNetwork: Bool? {
+    return { () -> Bool? in
+      if bridge.has_value_std__optional_bool_(self.__monitorNetwork) {
+        let __unwrapped = bridge.get_std__optional_bool_(self.__monitorNetwork)
         return __unwrapped
       } else {
         return nil
