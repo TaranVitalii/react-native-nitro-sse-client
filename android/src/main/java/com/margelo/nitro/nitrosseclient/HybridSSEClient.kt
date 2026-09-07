@@ -587,6 +587,13 @@ class HybridSSEClient : HybridSSEClientSpec() {
   }
 
   private fun scheduleReconnectIfNeeded(httpStatus: Int?, wasContentTypeError: Boolean) {
+    // Called from every connection-ending path (HTTP error, content-type error, a dropped/
+    // completed read loop, onFailure) — stopping here, not just at the top of the next
+    // performConnect(), matters because currentCall is NOT nulled after the read loop ends: a
+    // watchdog left running past this point would still see currentCall pointing at the now-dead
+    // call and could fire during the reconnect delay, spuriously re-reporting onError/onClose (or
+    // even re-entering this function) for a connection that already ended.
+    stopHeartbeatWatchdog()
     if (intentionallyStopped) return
     if (!reconnectEnabled) {
       setState(SSEConnectionState.CLOSED)
