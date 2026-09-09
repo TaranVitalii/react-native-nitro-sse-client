@@ -26,7 +26,10 @@ data class SSEReconnectOptions(
   val intervalMs: Double?,
   @DoNotStrip
   @Keep
-  val maxAttempts: Double?
+  val maxAttempts: Double?,
+  @DoNotStrip
+  @Keep
+  val retryOnClientError: Boolean?
 ) {
   /* primary constructor */
 
@@ -36,13 +39,15 @@ data class SSEReconnectOptions(
     return Objects.deepEquals(this.enabled, other.enabled)
       && Objects.deepEquals(this.intervalMs, other.intervalMs)
       && Objects.deepEquals(this.maxAttempts, other.maxAttempts)
+      && Objects.deepEquals(this.retryOnClientError, other.retryOnClientError)
   }
 
   override fun hashCode(): Int {
     return arrayOf<Any?>(
       enabled,
       intervalMs,
-      maxAttempts
+      maxAttempts,
+      retryOnClientError
     ).contentDeepHashCode()
   }
 
@@ -54,8 +59,8 @@ data class SSEReconnectOptions(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(enabled: Boolean?, intervalMs: Double?, maxAttempts: Double?): SSEReconnectOptions {
-      return SSEReconnectOptions(enabled, intervalMs, maxAttempts)
+    private fun fromCpp(enabled: Boolean?, intervalMs: Double?, maxAttempts: Double?, retryOnClientError: Boolean?): SSEReconnectOptions {
+      return SSEReconnectOptions(enabled, intervalMs, maxAttempts, retryOnClientError)
     }
   }
 }

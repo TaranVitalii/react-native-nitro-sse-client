@@ -12,6 +12,7 @@ import okhttp3.Handshake
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okio.Buffer
 import java.io.IOException
@@ -26,6 +27,10 @@ private const val DEFAULT_RECONNECT_INTERVAL_MS = 3000.0
 // Error responses (4xx/5xx) are typically small JSON/HTML bodies — bounded so a misbehaving
 // server streaming an enormous error page can't grow this unboundedly before completion.
 private const val MAX_ERROR_BODY_BYTES = 8192L
+
+// OkHttp throws if these methods are given a null body — an empty one is substituted when the
+// caller specifies e.g. method: 'POST' without a body.
+private val METHODS_REQUIRING_BODY = setOf("POST", "PUT", "PATCH", "PROPPATCH", "REPORT")
 
 private class CallTimings {
   var connectStart: Long? = null
@@ -134,16 +139,21 @@ class HybridSSEClient : HybridSSEClientSpec() {
   private var connectStartedAt: Long? = null
   private var firstByteLogged = false
 
-  // Reconnect state. connectUrl/connectHeaders/connectSession are remembered so an automatic
-  // reconnect can repeat the same connect() call; reconnectEnabled/reconnectMaxAttempts come
-  // from the caller's SSEReconnectOptions, resolved once per explicit connect(). currentIntervalMs
-  // starts at options.intervalMs (default 3s) and is overridden per-stream by a `retry:` field
-  // from the server; it resets back to the option's value on the next *explicit* connect().
+  // Reconnect state. connectUrl/connectHeaders/connectMethod/connectBody/connectSession are
+  // remembered so an automatic reconnect can repeat the same connect() call;
+  // reconnectEnabled/reconnectMaxAttempts/retryOnClientError come from the caller's
+  // SSEReconnectOptions, resolved once per explicit connect(). currentIntervalMs starts at
+  // options.intervalMs (default 3s) and is overridden per-stream by a `retry:` field from the
+  // server; it resets back to the option's value on the next *explicit* connect().
   private var connectUrl: String? = null
   private var connectHeaders: Map<String, String>? = null
+  private var connectMethod: String? = null
+  private var connectBody: String? = null
   private var connectSession: SSESessionOptions? = null
+  private var shouldValidateContentType = true
   private var reconnectEnabled = true
   private var reconnectMaxAttempts: Double? = null
+  private var retryOnClientError = false
   private var currentIntervalMs = DEFAULT_RECONNECT_INTERVAL_MS
   private var reconnectAttempts = 0
   private val mainHandler = Handler(Looper.getMainLooper())
@@ -153,7 +163,15 @@ class HybridSSEClient : HybridSSEClientSpec() {
   private var intentionallyStopped = false
   private var lastEventId: String? = null
 
-  override fun connect(url: String, headers: Map<String, String>?, session: SSESessionOptions?, reconnect: SSEReconnectOptions?) {
+  override fun connect(
+    url: String,
+    headers: Map<String, String>?,
+    session: SSESessionOptions?,
+    reconnect: SSEReconnectOptions?,
+    httpMethod: String?,
+    body: String?,
+    validateContentType: Boolean?
+  ) {
     // Validated before touching any existing connection, so a bad URL on a reconnect attempt
     // doesn't tear down a connection that was working fine — and reported through onError like
     // any other connection failure, rather than left to crash as an uncaught IllegalArgumentException.
@@ -173,10 +191,14 @@ class HybridSSEClient : HybridSSEClientSpec() {
 
     connectUrl = url
     connectHeaders = headers
+    connectMethod = httpMethod
+    connectBody = body
     connectSession = session
+    shouldValidateContentType = validateContentType ?: true
     reconnectEnabled = reconnect?.enabled ?: true
     currentIntervalMs = reconnect?.intervalMs ?: DEFAULT_RECONNECT_INTERVAL_MS
     reconnectMaxAttempts = reconnect?.maxAttempts
+    retryOnClientError = reconnect?.retryOnClientError ?: false
 
     performConnect(isReconnect = false)
   }
@@ -184,6 +206,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
   private fun performConnect(isReconnect: Boolean) {
     val url = connectUrl ?: return
     val requestBuilder = Request.Builder().url(url)
+    applyMethodAndBody(requestBuilder, connectMethod, connectBody)
 
     currentCall?.let { emitCloseMetrics(it) }
     currentCall?.cancel()
@@ -231,8 +254,22 @@ class HybridSSEClient : HybridSSEClientSpec() {
           Log.e(LOG_TAG, "HTTP error: $statusCode")
           onError(SSEError(bodyString, SSEErrorType.HTTP, statusCode.toDouble()))
           onClose()
-          scheduleReconnectIfNeeded()
+          scheduleReconnectIfNeeded(httpStatus = statusCode, wasContentTypeError = false)
           return
+        }
+
+        if (shouldValidateContentType) {
+          val contentType = response.header("Content-Type")?.lowercase() ?: ""
+          if (!contentType.startsWith("text/event-stream")) {
+            val bodyString = readBoundedBody(response)
+            response.close()
+            Log.e(LOG_TAG, "unexpected Content-Type: $contentType")
+            val message = bodyString.ifEmpty { "Response Content-Type was not text/event-stream" }
+            onError(SSEError(message, SSEErrorType.INVALID_CONTENT_TYPE, null))
+            onClose()
+            scheduleReconnectIfNeeded(httpStatus = null, wasContentTypeError = true)
+            return
+          }
         }
 
         reconnectAttempts = 0
@@ -277,7 +314,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
 
         if (call === currentCall) {
           onClose()
-          scheduleReconnectIfNeeded()
+          scheduleReconnectIfNeeded(httpStatus = null, wasContentTypeError = false)
         }
       }
 
@@ -291,9 +328,20 @@ class HybridSSEClient : HybridSSEClientSpec() {
         val type = if (e is SocketTimeoutException) SSEErrorType.TIMEOUT else SSEErrorType.NETWORK
         onError(SSEError(e.message ?: e.toString(), type, null))
         onClose()
-        scheduleReconnectIfNeeded()
+        scheduleReconnectIfNeeded(httpStatus = null, wasContentTypeError = false)
       }
     })
+  }
+
+  // GET/HEAD must carry a null body; POST/PUT/PATCH etc. throw from OkHttp if given a null one —
+  // an empty body is substituted so `method: 'POST'` alone (no body) doesn't crash.
+  private fun applyMethodAndBody(builder: Request.Builder, method: String?, body: String?) {
+    val resolvedMethod = method?.uppercase() ?: "GET"
+    if (resolvedMethod !in METHODS_REQUIRING_BODY && body == null) {
+      builder.method(resolvedMethod, null)
+      return
+    }
+    builder.method(resolvedMethod, (body ?: "").toRequestBody())
   }
 
   private fun readBoundedBody(response: Response): String {
@@ -310,8 +358,21 @@ class HybridSSEClient : HybridSSEClientSpec() {
     }
   }
 
-  private fun scheduleReconnectIfNeeded() {
+  // A 4xx status (other than 429, a rate-limit signal worth retrying) reflects something wrong
+  // with the request/server config that retrying identically won't fix — same for a Content-Type
+  // mismatch. Both are skipped by default; retryOnClientError opts back into the old
+  // retry-everything behavior.
+  private fun isRetryableByDefault(httpStatus: Int?, wasContentTypeError: Boolean): Boolean {
+    if (retryOnClientError) return true
+    if (wasContentTypeError) return false
+    if (httpStatus == null) return true
+    if (httpStatus == 429) return true
+    return httpStatus !in 400..499
+  }
+
+  private fun scheduleReconnectIfNeeded(httpStatus: Int?, wasContentTypeError: Boolean) {
     if (!reconnectEnabled || intentionallyStopped) return
+    if (!isRetryableByDefault(httpStatus, wasContentTypeError)) return
     reconnectMaxAttempts?.let { max -> if (reconnectAttempts >= max) return }
     reconnectAttempts += 1
 

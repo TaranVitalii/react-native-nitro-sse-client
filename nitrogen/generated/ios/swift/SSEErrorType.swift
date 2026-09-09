@@ -19,6 +19,8 @@ public extension SSEErrorType {
     switch string {
       case "http":
         self = .http
+      case "invalid-content-type":
+        self = .invalidContentType
       case "network":
         self = .network
       case "timeout":
@@ -37,6 +39,8 @@ public extension SSEErrorType {
     switch self {
       case .http:
         return "http"
+      case .invalidContentType:
+        return "invalid-content-type"
       case .network:
         return "network"
       case .timeout:

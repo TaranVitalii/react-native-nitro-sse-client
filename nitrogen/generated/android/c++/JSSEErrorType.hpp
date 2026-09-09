@@ -45,6 +45,9 @@ namespace margelo::nitro::nitrosseclient {
         case SSEErrorType::HTTP:
           static const auto fieldHTTP = clazz->getStaticField<JSSEErrorType>("HTTP");
           return clazz->getStaticFieldValue(fieldHTTP);
+        case SSEErrorType::INVALID_CONTENT_TYPE:
+          static const auto fieldINVALID_CONTENT_TYPE = clazz->getStaticField<JSSEErrorType>("INVALID_CONTENT_TYPE");
+          return clazz->getStaticFieldValue(fieldINVALID_CONTENT_TYPE);
         case SSEErrorType::NETWORK:
           static const auto fieldNETWORK = clazz->getStaticField<JSSEErrorType>("NETWORK");
           return clazz->getStaticFieldValue(fieldNETWORK);

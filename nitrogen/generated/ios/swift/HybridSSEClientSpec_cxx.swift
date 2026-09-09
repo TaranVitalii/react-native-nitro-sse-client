@@ -218,7 +218,7 @@ open class HybridSSEClientSpec_cxx {
 
   // Methods
   @inline(__always)
-  public final func connect(url: std.string, headers: bridge.std__optional_std__unordered_map_std__string__std__string__, session: bridge.std__optional_SSESessionOptions_, reconnect: bridge.std__optional_SSEReconnectOptions_) -> bridge.Result_void_ {
+  public final func connect(url: std.string, headers: bridge.std__optional_std__unordered_map_std__string__std__string__, session: bridge.std__optional_SSESessionOptions_, reconnect: bridge.std__optional_SSEReconnectOptions_, httpMethod: bridge.std__optional_std__string_, body: bridge.std__optional_std__string_, validateContentType: bridge.std__optional_bool_) -> bridge.Result_void_ {
     do {
       try self.__implementation.connect(url: String(url), headers: { () -> Dictionary<String, String>? in
         if bridge.has_value_std__optional_std__unordered_map_std__string__std__string__(headers) {
@@ -235,7 +235,28 @@ open class HybridSSEClientSpec_cxx {
         } else {
           return nil
         }
-      }(), session: session.value, reconnect: reconnect.value)
+      }(), session: session.value, reconnect: reconnect.value, httpMethod: { () -> String? in
+        if bridge.has_value_std__optional_std__string_(httpMethod) {
+          let __unwrapped = bridge.get_std__optional_std__string_(httpMethod)
+          return String(__unwrapped)
+        } else {
+          return nil
+        }
+      }(), body: { () -> String? in
+        if bridge.has_value_std__optional_std__string_(body) {
+          let __unwrapped = bridge.get_std__optional_std__string_(body)
+          return String(__unwrapped)
+        } else {
+          return nil
+        }
+      }(), validateContentType: { () -> Bool? in
+        if bridge.has_value_std__optional_bool_(validateContentType) {
+          let __unwrapped = bridge.get_std__optional_bool_(validateContentType)
+          return __unwrapped
+        } else {
+          return nil
+        }
+      }())
       return bridge.create_Result_void_()
     } catch (let __error) {
       let __exceptionPtr = __error.toCpp()

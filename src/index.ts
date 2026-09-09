@@ -38,6 +38,16 @@ export interface SSEConnectOptions {
   /** Automatic reconnect after the connection ends (error, or the server closing the stream).
    * On by default — see SSEReconnectOptions. */
   reconnect?: SSEReconnectOptions
+  /** Default 'GET'. Use 'POST' (with `body`) for APIs that stream SSE responses to a request
+   * body — e.g. most LLM chat-completion endpoints. */
+  method?: string
+  /** Sent as the raw request body (e.g. `JSON.stringify(...)`. Set your own `Content-Type` via
+   * `headers` — none is assumed. */
+  body?: string
+  /** Default true. A non-`text/event-stream` Content-Type on an otherwise-successful response is
+   * reported via onError (type 'invalid-content-type') instead of being treated as open. Set
+   * false for a server that's valid SSE but sends a different/no Content-Type. */
+  validateContentType?: boolean
 }
 
 let sharedSessionCreated = false
@@ -123,7 +133,15 @@ export class SSEStream {
       )
     }
     sharedSessionCreated = true
-    this.native.connect(url, options?.headers, session, options?.reconnect)
+    this.native.connect(
+      url,
+      options?.headers,
+      session,
+      options?.reconnect,
+      options?.method,
+      options?.body,
+      options?.validateContentType
+    )
   }
 
   disconnect(): void {

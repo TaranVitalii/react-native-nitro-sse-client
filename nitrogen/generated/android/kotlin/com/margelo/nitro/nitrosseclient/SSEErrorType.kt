@@ -17,9 +17,10 @@ import com.facebook.proguard.annotations.DoNotStrip
 @Keep
 enum class SSEErrorType(@DoNotStrip @Keep val value: Int) {
   HTTP(0),
-  NETWORK(1),
-  TIMEOUT(2),
-  EXCEPTION(3);
+  INVALID_CONTENT_TYPE(1),
+  NETWORK(2),
+  TIMEOUT(3),
+  EXCEPTION(4);
 
   companion object
 }
