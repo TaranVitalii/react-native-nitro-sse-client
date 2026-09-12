@@ -15,6 +15,8 @@ namespace margelo::nitro::nitrosseclient { struct SSEError; }
 namespace margelo::nitro::nitrosseclient { enum class SSEErrorType; }
 // Forward declaration of `SSEConnectionMetrics` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
+// Forward declaration of `SSEConnectionState` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { enum class SSEConnectionState; }
 // Forward declaration of `SSESessionOptions` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 // Forward declaration of `SSEReconnectOptions` to properly resolve imports.
@@ -36,6 +38,9 @@ namespace margelo::nitro::nitrosseclient { struct SSEReconnectOptions; }
 #include "SSEConnectionMetrics.hpp"
 #include "JFunc_void_SSEConnectionMetrics.hpp"
 #include "JSSEConnectionMetrics.hpp"
+#include "SSEConnectionState.hpp"
+#include "JFunc_void_SSEConnectionState.hpp"
+#include "JSSEConnectionState.hpp"
 #include <unordered_map>
 #include "SSESessionOptions.hpp"
 #include "JSSESessionOptions.hpp"
@@ -156,6 +161,23 @@ namespace margelo::nitro::nitrosseclient {
   void JHybridSSEClientSpec::setOnMetrics(const std::function<void(const SSEConnectionMetrics& /* metrics */)>& onMetrics) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_SSEConnectionMetrics::javaobject> /* onMetrics */)>("setOnMetrics_cxx");
     method(_javaPart, JFunc_void_SSEConnectionMetrics_cxx::fromCpp(onMetrics));
+  }
+  std::function<void(SSEConnectionState /* state */)> JHybridSSEClientSpec::getOnStateChange() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_void_SSEConnectionState::javaobject>()>("getOnStateChange_cxx");
+    auto __result = method(_javaPart);
+    return [&]() -> std::function<void(SSEConnectionState /* state */)> {
+      if (__result->isInstanceOf(JFunc_void_SSEConnectionState_cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_void_SSEConnectionState_cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_void_SSEConnectionState, void(SSEConnectionState)>(std::move(__resultRef));
+      }
+    }();
+  }
+  void JHybridSSEClientSpec::setOnStateChange(const std::function<void(SSEConnectionState /* state */)>& onStateChange) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_SSEConnectionState::javaobject> /* onStateChange */)>("setOnStateChange_cxx");
+    method(_javaPart, JFunc_void_SSEConnectionState_cxx::fromCpp(onStateChange));
   }
 
   // Methods

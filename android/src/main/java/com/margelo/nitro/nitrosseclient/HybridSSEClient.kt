@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit
 
 private const val LOG_TAG = "NativeSSE"
 private const val DEFAULT_RECONNECT_INTERVAL_MS = 3000.0
+private const val DEFAULT_MAX_RECONNECT_INTERVAL_MS = 30000.0
+private const val DEFAULT_JITTER_FACTOR = 0.5
 
 // Error responses (4xx/5xx) are typically small JSON/HTML bodies — bounded so a misbehaving
 // server streaming an enormous error page can't grow this unboundedly before completion.
@@ -134,6 +136,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
   override var onError: (error: SSEError) -> Unit = {}
   override var onClose: () -> Unit = {}
   override var onMetrics: (metrics: SSEConnectionMetrics) -> Unit = {}
+  override var onStateChange: (state: SSEConnectionState) -> Unit = {}
 
   private var currentCall: Call? = null
   private var connectStartedAt: Long? = null
@@ -155,6 +158,8 @@ class HybridSSEClient : HybridSSEClientSpec() {
   private var reconnectMaxAttempts: Double? = null
   private var retryOnClientError = false
   private var currentIntervalMs = DEFAULT_RECONNECT_INTERVAL_MS
+  private var maxIntervalMs = DEFAULT_MAX_RECONNECT_INTERVAL_MS
+  private var jitterFactor = DEFAULT_JITTER_FACTOR
   private var reconnectAttempts = 0
   private val mainHandler = Handler(Looper.getMainLooper())
   private var pendingReconnect: Runnable? = null
@@ -162,6 +167,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
   // caller asked us to stop" from a connection merely ending, which is what schedules a retry.
   private var intentionallyStopped = false
   private var lastEventId: String? = null
+  private var currentState: SSEConnectionState = SSEConnectionState.IDLE
 
   override fun connect(
     url: String,
@@ -197,10 +203,22 @@ class HybridSSEClient : HybridSSEClientSpec() {
     shouldValidateContentType = validateContentType ?: true
     reconnectEnabled = reconnect?.enabled ?: true
     currentIntervalMs = reconnect?.intervalMs ?: DEFAULT_RECONNECT_INTERVAL_MS
+    maxIntervalMs = reconnect?.maxIntervalMs ?: DEFAULT_MAX_RECONNECT_INTERVAL_MS
+    jitterFactor = reconnect?.jitterFactor ?: DEFAULT_JITTER_FACTOR
     reconnectMaxAttempts = reconnect?.maxAttempts
     retryOnClientError = reconnect?.retryOnClientError ?: false
 
+    setState(SSEConnectionState.CONNECTING)
     performConnect(isReconnect = false)
+  }
+
+  // Only fires onStateChange when the state actually changes — callers can transition through
+  // the same state repeatedly (e.g. scheduleReconnectIfNeeded on every failed attempt) without
+  // spamming duplicate events.
+  private fun setState(newState: SSEConnectionState) {
+    if (currentState == newState) return
+    currentState = newState
+    onStateChange(newState)
   }
 
   private fun performConnect(isReconnect: Boolean) {
@@ -273,6 +291,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
         }
 
         reconnectAttempts = 0
+        setState(SSEConnectionState.OPEN)
         onOpen()
         try {
           val source = response.body?.source()
@@ -371,16 +390,44 @@ class HybridSSEClient : HybridSSEClientSpec() {
   }
 
   private fun scheduleReconnectIfNeeded(httpStatus: Int?, wasContentTypeError: Boolean) {
-    if (!reconnectEnabled || intentionallyStopped) return
-    if (!isRetryableByDefault(httpStatus, wasContentTypeError)) return
-    reconnectMaxAttempts?.let { max -> if (reconnectAttempts >= max) return }
+    if (intentionallyStopped) return
+    if (!reconnectEnabled) {
+      setState(SSEConnectionState.CLOSED)
+      return
+    }
+    if (!isRetryableByDefault(httpStatus, wasContentTypeError)) {
+      setState(SSEConnectionState.FAILED)
+      return
+    }
+    reconnectMaxAttempts?.let { max ->
+      if (reconnectAttempts >= max) {
+        setState(SSEConnectionState.FAILED)
+        return
+      }
+    }
+
+    val delayMs = nextReconnectDelayMs(reconnectAttempts)
     reconnectAttempts += 1
+    setState(SSEConnectionState.RECONNECTING)
 
     val runnable = Runnable {
       if (!intentionallyStopped) performConnect(isReconnect = true)
     }
     pendingReconnect = runnable
-    mainHandler.postDelayed(runnable, currentIntervalMs.toLong())
+    mainHandler.postDelayed(runnable, delayMs.toLong())
+  }
+
+  // Exponential backoff with jitter: delay doubles with each consecutive failed attempt, starting
+  // from currentIntervalMs (the base interval, or the server's last `retry:` value) and capped at
+  // maxIntervalMs, then randomized by jitterFactor to avoid many clients retrying in lockstep
+  // after a shared outage. `attempt` is 0 for the first scheduled reconnect (so it starts at
+  // exactly currentIntervalMs before jitter), 1 for the second (2x), 2 for the third (4x), etc.
+  private fun nextReconnectDelayMs(attempt: Int): Double {
+    val exponential = minOf(currentIntervalMs * Math.pow(2.0, attempt.toDouble()), maxIntervalMs)
+    if (jitterFactor <= 0) return exponential
+    val spread = exponential * jitterFactor
+    val jittered = exponential - spread / 2 + Math.random() * spread
+    return jittered.coerceIn(0.0, maxIntervalMs)
   }
 
   override fun disconnect() {
@@ -391,6 +438,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
     val hadActiveCall = currentCall != null
     currentCall?.cancel()
     currentCall = null
+    setState(SSEConnectionState.CLOSED)
     if (hadActiveCall) onClose()
   }
 

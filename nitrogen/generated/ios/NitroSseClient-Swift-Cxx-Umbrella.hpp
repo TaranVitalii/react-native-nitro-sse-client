@@ -12,6 +12,8 @@
 namespace margelo::nitro::nitrosseclient { class HybridSSEClientSpec; }
 // Forward declaration of `SSEConnectionMetrics` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
+// Forward declaration of `SSEConnectionState` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { enum class SSEConnectionState; }
 // Forward declaration of `SSEErrorType` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { enum class SSEErrorType; }
 // Forward declaration of `SSEError` to properly resolve imports.
@@ -26,6 +28,7 @@ namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 // Include C++ defined types
 #include "HybridSSEClientSpec.hpp"
 #include "SSEConnectionMetrics.hpp"
+#include "SSEConnectionState.hpp"
 #include "SSEError.hpp"
 #include "SSEErrorType.hpp"
 #include "SSEMessageEvent.hpp"

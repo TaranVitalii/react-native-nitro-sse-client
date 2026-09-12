@@ -20,6 +20,8 @@ namespace margelo::nitro::nitrosseclient { struct SSEError; }
 namespace margelo::nitro::nitrosseclient { enum class SSEErrorType; }
 // Forward declaration of `SSEConnectionMetrics` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
+// Forward declaration of `SSEConnectionState` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { enum class SSEConnectionState; }
 // Forward declaration of `SSESessionOptions` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSESessionOptions; }
 // Forward declaration of `SSEReconnectOptions` to properly resolve imports.
@@ -32,6 +34,7 @@ namespace margelo::nitro::nitrosseclient { struct SSEReconnectOptions; }
 #include "SSEError.hpp"
 #include "SSEErrorType.hpp"
 #include "SSEConnectionMetrics.hpp"
+#include "SSEConnectionState.hpp"
 #include <unordered_map>
 #include "SSESessionOptions.hpp"
 #include "SSEReconnectOptions.hpp"
@@ -116,6 +119,13 @@ namespace margelo::nitro::nitrosseclient {
     }
     inline void setOnMetrics(const std::function<void(const SSEConnectionMetrics& /* metrics */)>& onMetrics) noexcept override {
       _swiftPart.setOnMetrics(onMetrics);
+    }
+    inline std::function<void(SSEConnectionState /* state */)> getOnStateChange() noexcept override {
+      auto __result = _swiftPart.getOnStateChange();
+      return __result;
+    }
+    inline void setOnStateChange(const std::function<void(SSEConnectionState /* state */)>& onStateChange) noexcept override {
+      _swiftPart.setOnStateChange(onStateChange);
     }
 
   public:

@@ -215,6 +215,25 @@ open class HybridSSEClientSpec_cxx {
       }()
     }
   }
+  
+  public final var onStateChange: bridge.Func_void_SSEConnectionState {
+    @inline(__always)
+    get {
+      return { () -> bridge.Func_void_SSEConnectionState in
+        let __closureWrapper = Func_void_SSEConnectionState(self.__implementation.onStateChange)
+        return bridge.create_Func_void_SSEConnectionState(__closureWrapper.toUnsafe())
+      }()
+    }
+    @inline(__always)
+    set {
+      self.__implementation.onStateChange = { () -> (SSEConnectionState) -> Void in
+        let __wrappedFunction = bridge.wrap_Func_void_SSEConnectionState(newValue)
+        return { (__state: SSEConnectionState) -> Void in
+          __wrappedFunction.call(__state.rawValue)
+        }
+      }()
+    }
+  }
 
   // Methods
   @inline(__always)

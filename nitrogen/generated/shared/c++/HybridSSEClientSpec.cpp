@@ -24,6 +24,8 @@ namespace margelo::nitro::nitrosseclient {
       prototype.registerHybridSetter("onClose", &HybridSSEClientSpec::setOnClose);
       prototype.registerHybridGetter("onMetrics", &HybridSSEClientSpec::getOnMetrics);
       prototype.registerHybridSetter("onMetrics", &HybridSSEClientSpec::setOnMetrics);
+      prototype.registerHybridGetter("onStateChange", &HybridSSEClientSpec::getOnStateChange);
+      prototype.registerHybridSetter("onStateChange", &HybridSSEClientSpec::setOnStateChange);
       prototype.registerHybridMethod("connect", &HybridSSEClientSpec::connect);
       prototype.registerHybridMethod("disconnect", &HybridSSEClientSpec::disconnect);
     });

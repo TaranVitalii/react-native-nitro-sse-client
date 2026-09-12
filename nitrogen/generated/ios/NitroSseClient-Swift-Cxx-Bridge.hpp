@@ -12,6 +12,8 @@
 namespace margelo::nitro::nitrosseclient { class HybridSSEClientSpec; }
 // Forward declaration of `SSEConnectionMetrics` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { struct SSEConnectionMetrics; }
+// Forward declaration of `SSEConnectionState` to properly resolve imports.
+namespace margelo::nitro::nitrosseclient { enum class SSEConnectionState; }
 // Forward declaration of `SSEErrorType` to properly resolve imports.
 namespace margelo::nitro::nitrosseclient { enum class SSEErrorType; }
 // Forward declaration of `SSEError` to properly resolve imports.
@@ -30,6 +32,7 @@ namespace NitroSseClient { class HybridSSEClientSpec_cxx; }
 // Include C++ defined types
 #include "HybridSSEClientSpec.hpp"
 #include "SSEConnectionMetrics.hpp"
+#include "SSEConnectionState.hpp"
 #include "SSEError.hpp"
 #include "SSEErrorType.hpp"
 #include "SSEMessageEvent.hpp"
@@ -250,6 +253,28 @@ namespace margelo::nitro::nitrosseclient::bridge::swift {
   Func_void_SSEConnectionMetrics create_Func_void_SSEConnectionMetrics(void* NON_NULL swiftClosureWrapper) noexcept;
   inline Func_void_SSEConnectionMetrics_Wrapper wrap_Func_void_SSEConnectionMetrics(Func_void_SSEConnectionMetrics value) noexcept {
     return Func_void_SSEConnectionMetrics_Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::function<void(SSEConnectionState /* state */)>
+  /**
+   * Specialized version of `std::function<void(SSEConnectionState)>`.
+   */
+  using Func_void_SSEConnectionState = std::function<void(SSEConnectionState /* state */)>;
+  /**
+   * Wrapper class for a `std::function<void(SSEConnectionState / * state * /)>`, this can be used from Swift.
+   */
+  class Func_void_SSEConnectionState_Wrapper final {
+  public:
+    explicit Func_void_SSEConnectionState_Wrapper(std::function<void(SSEConnectionState /* state */)>&& func): _function(std::make_unique<std::function<void(SSEConnectionState /* state */)>>(std::move(func))) {}
+    inline void call(int state) const noexcept {
+      _function->operator()(static_cast<SSEConnectionState>(state));
+    }
+  private:
+    std::unique_ptr<std::function<void(SSEConnectionState /* state */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_SSEConnectionState create_Func_void_SSEConnectionState(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_SSEConnectionState_Wrapper wrap_Func_void_SSEConnectionState(Func_void_SSEConnectionState value) noexcept {
+    return Func_void_SSEConnectionState_Wrapper(std::move(value));
   }
   
   // pragma MARK: std::shared_ptr<HybridSSEClientSpec>

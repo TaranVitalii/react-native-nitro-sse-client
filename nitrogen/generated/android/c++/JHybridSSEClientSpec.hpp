@@ -60,6 +60,8 @@ namespace margelo::nitro::nitrosseclient {
     void setOnClose(const std::function<void()>& onClose) override;
     std::function<void(const SSEConnectionMetrics& /* metrics */)> getOnMetrics() override;
     void setOnMetrics(const std::function<void(const SSEConnectionMetrics& /* metrics */)>& onMetrics) override;
+    std::function<void(SSEConnectionState /* state */)> getOnStateChange() override;
+    void setOnStateChange(const std::function<void(SSEConnectionState /* state */)>& onStateChange) override;
 
   public:
     // Methods
