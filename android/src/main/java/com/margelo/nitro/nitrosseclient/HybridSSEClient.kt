@@ -3,6 +3,12 @@ package com.margelo.nitro.nitrosseclient
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.margelo.nitro.core.Promise
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Connection
@@ -137,6 +143,9 @@ class HybridSSEClient : HybridSSEClientSpec() {
   override var onClose: () -> Unit = {}
   override var onMetrics: (metrics: SSEConnectionMetrics) -> Unit = {}
   override var onStateChange: (state: SSEConnectionState) -> Unit = {}
+  // Default no-op resolves immediately with no extra headers — most streams never set this.
+  override var onBeforeRequest: () -> Promise<Promise<Map<String, String>>> =
+    { Promise.resolved(Promise.resolved(emptyMap())) }
 
   private var currentCall: Call? = null
   private var connectStartedAt: Long? = null
@@ -168,6 +177,11 @@ class HybridSSEClient : HybridSSEClientSpec() {
   private var intentionallyStopped = false
   private var lastEventId: String? = null
   private var currentState: SSEConnectionState = SSEConnectionState.IDLE
+  // Bumped on every performConnect() attempt (explicit or reconnect) — captured before awaiting
+  // onBeforeRequest, and re-checked after it resolves, so an attempt superseded by a newer
+  // connect()/reconnect during that async gap doesn't go on to fire its (now stale) request.
+  private var connectGeneration = 0
+  private val coroutineScope = CoroutineScope(Dispatchers.Default + Job())
 
   override fun connect(
     url: String,
@@ -222,12 +236,36 @@ class HybridSSEClient : HybridSSEClientSpec() {
   }
 
   private fun performConnect(isReconnect: Boolean) {
-    val url = connectUrl ?: return
-    val requestBuilder = Request.Builder().url(url)
-    applyMethodAndBody(requestBuilder, connectMethod, connectBody)
+    if (connectUrl == null) return
 
     currentCall?.let { emitCloseMetrics(it) }
     currentCall?.cancel()
+    // Nulled out immediately (not just cancelled) so a late callback for this old call, arriving
+    // during the onBeforeRequest await below, fails the `call !== currentCall` identity guard the
+    // same way it would if we'd already moved on to a new call.
+    currentCall = null
+
+    connectGeneration += 1
+    val attemptGeneration = connectGeneration
+
+    coroutineScope.launch {
+      var extraHeaders: Map<String, String> = emptyMap()
+      try {
+        // Double-await: onBeforeRequest() itself returns a Promise (the JSI call dispatch), which
+        // resolves to the Promise<Map<String, String>> the JS implementation returned.
+        extraHeaders = onBeforeRequest().await().await()
+      } catch (e: Throwable) {
+        // onBeforeRequest failing shouldn't block connecting — proceed without extra headers.
+      }
+      if (connectGeneration != attemptGeneration || intentionallyStopped) return@launch
+      fireRequest(isReconnect, extraHeaders)
+    }
+  }
+
+  private fun fireRequest(isReconnect: Boolean, extraHeaders: Map<String, String>) {
+    val url = connectUrl ?: return
+    val requestBuilder = Request.Builder().url(url)
+    applyMethodAndBody(requestBuilder, connectMethod, connectBody)
 
     firstByteLogged = false
     connectStartedAt = System.nanoTime()
@@ -243,6 +281,9 @@ class HybridSSEClient : HybridSSEClientSpec() {
     // Applied after the defaults above, so a caller can override Accept/User-Agent too if they
     // need to — e.g. Authorization for a protected endpoint.
     connectHeaders?.forEach { (key, value) -> requestBuilder.header(key, value) }
+    // onBeforeRequest's result is applied last, so it can override anything above — e.g.
+    // refreshing an Authorization header that connectHeaders set with a now-stale token.
+    extraHeaders.forEach { (key, value) -> requestBuilder.header(key, value) }
 
     // Only sent on an automatic reconnect that has actually seen an id: field — an explicit
     // connect() always starts a fresh logical session (see lastEventId reset in connect()).
@@ -449,6 +490,7 @@ class HybridSSEClient : HybridSSEClientSpec() {
     super.dispose()
     pendingReconnect?.let { mainHandler.removeCallbacks(it) }
     currentCall?.cancel()
+    coroutineScope.cancel()
   }
 
   // Native-only diagnostic — not sent to JS. onMetrics is limited to connectionReused (see

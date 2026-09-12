@@ -42,6 +42,9 @@ namespace margelo::nitro::nitrosseclient { struct SSEReconnectOptions; }
 #include "JFunc_void_SSEConnectionState.hpp"
 #include "JSSEConnectionState.hpp"
 #include <unordered_map>
+#include <NitroModules/Promise.hpp>
+#include "JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____.hpp"
+#include <NitroModules/JPromise.hpp>
 #include "SSESessionOptions.hpp"
 #include "JSSESessionOptions.hpp"
 #include "SSEReconnectOptions.hpp"
@@ -178,6 +181,23 @@ namespace margelo::nitro::nitrosseclient {
   void JHybridSSEClientSpec::setOnStateChange(const std::function<void(SSEConnectionState /* state */)>& onStateChange) {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_void_SSEConnectionState::javaobject> /* onStateChange */)>("setOnStateChange_cxx");
     method(_javaPart, JFunc_void_SSEConnectionState_cxx::fromCpp(onStateChange));
+  }
+  std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()> JHybridSSEClientSpec::getOnBeforeRequest() {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<jni::local_ref<JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____::javaobject>()>("getOnBeforeRequest_cxx");
+    auto __result = method(_javaPart);
+    return [&]() -> std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()> {
+      if (__result->isInstanceOf(JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string______cxx::javaClassStatic())) [[likely]] {
+        auto downcast = jni::static_ref_cast<JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string______cxx::javaobject>(__result);
+        return downcast->cthis()->getFunction();
+      } else {
+        auto __resultRef = jni::make_global(__result);
+        return JNICallable<JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____, std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>(std::move(__resultRef));
+      }
+    }();
+  }
+  void JHybridSSEClientSpec::setOnBeforeRequest(const std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>& onBeforeRequest) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____::javaobject> /* onBeforeRequest */)>("setOnBeforeRequest_cxx");
+    method(_javaPart, JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string______cxx::fromCpp(onBeforeRequest));
   }
 
   // Methods

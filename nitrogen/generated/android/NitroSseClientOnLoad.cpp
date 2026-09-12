@@ -21,6 +21,7 @@
 #include "JFunc_void_SSEError.hpp"
 #include "JFunc_void_SSEConnectionMetrics.hpp"
 #include "JFunc_void_SSEConnectionState.hpp"
+#include "JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____.hpp"
 #include <NitroModules/DefaultConstructableObject.hpp>
 
 namespace margelo::nitro::nitrosseclient {
@@ -51,6 +52,7 @@ void registerAllNatives() {
   margelo::nitro::nitrosseclient::JFunc_void_SSEError_cxx::registerNatives();
   margelo::nitro::nitrosseclient::JFunc_void_SSEConnectionMetrics_cxx::registerNatives();
   margelo::nitro::nitrosseclient::JFunc_void_SSEConnectionState_cxx::registerNatives();
+  margelo::nitro::nitrosseclient::JFunc_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string______cxx::registerNatives();
 
   // Register Nitro Hybrid Objects
   HybridObjectRegistry::registerHybridObjectConstructor(
