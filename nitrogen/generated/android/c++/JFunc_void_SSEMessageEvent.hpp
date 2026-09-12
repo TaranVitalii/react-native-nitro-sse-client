@@ -16,6 +16,8 @@
 #include "JSSEMessageEvent.hpp"
 #include <string>
 #include <optional>
+#include <NitroModules/AnyMap.hpp>
+#include <NitroModules/JAnyMap.hpp>
 
 namespace margelo::nitro::nitrosseclient {
 

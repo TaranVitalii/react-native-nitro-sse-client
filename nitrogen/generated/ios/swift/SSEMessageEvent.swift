@@ -18,7 +18,7 @@ public extension SSEMessageEvent {
   /**
    * Create a new instance of `SSEMessageEvent`.
    */
-  init(id: String?, event: String?, data: String, timestampMs: Double) {
+  init(id: String?, event: String?, data: String, timestampMs: Double, parsedData: AnyMap?) {
     self.init({ () -> bridge.std__optional_std__string_ in
       if let __unwrappedValue = id {
         return bridge.create_std__optional_std__string_(std.string(__unwrappedValue))
@@ -31,7 +31,13 @@ public extension SSEMessageEvent {
       } else {
         return .init()
       }
-    }(), std.string(data), timestampMs)
+    }(), std.string(data), timestampMs, { () -> bridge.std__optional_std__shared_ptr_AnyMap__ in
+      if let __unwrappedValue = parsedData {
+        return bridge.create_std__optional_std__shared_ptr_AnyMap__(__unwrappedValue.cppPart)
+      } else {
+        return .init()
+      }
+    }())
   }
 
   @inline(__always)
@@ -66,5 +72,17 @@ public extension SSEMessageEvent {
   @inline(__always)
   var timestampMs: Double {
     return self.__timestampMs
+  }
+  
+  @inline(__always)
+  var parsedData: AnyMap? {
+    return { () -> AnyMap? in
+      if bridge.has_value_std__optional_std__shared_ptr_AnyMap__(self.__parsedData) {
+        let __unwrapped = bridge.get_std__optional_std__shared_ptr_AnyMap__(self.__parsedData)
+        return AnyMap(withCppPart: __unwrapped)
+      } else {
+        return nil
+      }
+    }()
   }
 }

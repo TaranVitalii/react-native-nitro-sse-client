@@ -19,7 +19,7 @@ public protocol HybridSSEClientSpec_protocol: HybridObject {
   var onBeforeRequest: () -> Promise<Promise<Dictionary<String, String>>> { get set }
 
   // Methods
-  func connect(url: String, headers: Dictionary<String, String>?, session: SSESessionOptions?, reconnect: SSEReconnectOptions?, httpMethod: String?, body: String?, validateContentType: Bool?) throws -> Void
+  func connect(url: String, headers: Dictionary<String, String>?, session: SSESessionOptions?, reconnect: SSEReconnectOptions?, httpMethod: String?, body: String?, validateContentType: Bool?, autoParseJSON: Bool?) throws -> Void
   func disconnect() throws -> Void
 }
 

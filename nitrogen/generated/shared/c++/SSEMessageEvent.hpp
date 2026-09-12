@@ -32,6 +32,7 @@
 
 #include <string>
 #include <optional>
+#include <NitroModules/AnyMap.hpp>
 
 namespace margelo::nitro::nitrosseclient {
 
@@ -44,10 +45,11 @@ namespace margelo::nitro::nitrosseclient {
     std::optional<std::string> event     SWIFT_PRIVATE;
     std::string data     SWIFT_PRIVATE;
     double timestampMs     SWIFT_PRIVATE;
+    std::optional<std::shared_ptr<AnyMap>> parsedData     SWIFT_PRIVATE;
 
   public:
     SSEMessageEvent() = default;
-    explicit SSEMessageEvent(std::optional<std::string> id, std::optional<std::string> event, std::string data, double timestampMs): id(id), event(event), data(data), timestampMs(timestampMs) {}
+    explicit SSEMessageEvent(std::optional<std::string> id, std::optional<std::string> event, std::string data, double timestampMs, std::optional<std::shared_ptr<AnyMap>> parsedData): id(id), event(event), data(data), timestampMs(timestampMs), parsedData(parsedData) {}
 
   public:
     friend bool operator==(const SSEMessageEvent& lhs, const SSEMessageEvent& rhs) = default;
@@ -66,7 +68,8 @@ namespace margelo::nitro {
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "id"))),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "event"))),
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "data"))),
-        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "timestampMs")))
+        JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "timestampMs"))),
+        JSIConverter<std::optional<std::shared_ptr<AnyMap>>>::fromJSI(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "parsedData")))
       );
     }
     static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::nitrosseclient::SSEMessageEvent& arg) {
@@ -75,6 +78,7 @@ namespace margelo::nitro {
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "event"), JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.event));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "data"), JSIConverter<std::string>::toJSI(runtime, arg.data));
       obj.setProperty(runtime, PropNameIDCache::get(runtime, "timestampMs"), JSIConverter<double>::toJSI(runtime, arg.timestampMs));
+      obj.setProperty(runtime, PropNameIDCache::get(runtime, "parsedData"), JSIConverter<std::optional<std::shared_ptr<AnyMap>>>::toJSI(runtime, arg.parsedData));
       return obj;
     }
     static inline bool canConvert(jsi::Runtime& runtime, const jsi::Value& value) {
@@ -89,6 +93,7 @@ namespace margelo::nitro {
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "event")))) return false;
       if (!JSIConverter<std::string>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "data")))) return false;
       if (!JSIConverter<double>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "timestampMs")))) return false;
+      if (!JSIConverter<std::optional<std::shared_ptr<AnyMap>>>::canConvert(runtime, obj.getProperty(runtime, PropNameIDCache::get(runtime, "parsedData")))) return false;
       return true;
     }
   };

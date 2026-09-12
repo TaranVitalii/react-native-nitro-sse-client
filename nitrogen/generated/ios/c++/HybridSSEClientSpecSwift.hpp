@@ -31,6 +31,7 @@ namespace margelo::nitro::nitrosseclient { struct SSEReconnectOptions; }
 #include <functional>
 #include <string>
 #include <optional>
+#include <NitroModules/AnyMap.hpp>
 #include "SSEError.hpp"
 #include "SSEErrorType.hpp"
 #include "SSEConnectionMetrics.hpp"
@@ -138,8 +139,8 @@ namespace margelo::nitro::nitrosseclient {
 
   public:
     // Methods
-    inline void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session, const std::optional<SSEReconnectOptions>& reconnect, const std::optional<std::string>& httpMethod, const std::optional<std::string>& body, std::optional<bool> validateContentType) override {
-      auto __result = _swiftPart.connect(url, headers, session, reconnect, httpMethod, body, validateContentType);
+    inline void connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session, const std::optional<SSEReconnectOptions>& reconnect, const std::optional<std::string>& httpMethod, const std::optional<std::string>& body, std::optional<bool> validateContentType, std::optional<bool> autoParseJSON) override {
+      auto __result = _swiftPart.connect(url, headers, session, reconnect, httpMethod, body, validateContentType, autoParseJSON);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
       }

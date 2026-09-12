@@ -29,6 +29,8 @@ namespace margelo::nitro::nitrosseclient { struct SSEReconnectOptions; }
 #include "JSSEMessageEvent.hpp"
 #include <string>
 #include <optional>
+#include <NitroModules/AnyMap.hpp>
+#include <NitroModules/JAnyMap.hpp>
 #include "JFunc_void.hpp"
 #include "SSEError.hpp"
 #include "JFunc_void_SSEError.hpp"
@@ -201,15 +203,15 @@ namespace margelo::nitro::nitrosseclient {
   }
 
   // Methods
-  void JHybridSSEClientSpec::connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session, const std::optional<SSEReconnectOptions>& reconnect, const std::optional<std::string>& httpMethod, const std::optional<std::string>& body, std::optional<bool> validateContentType) {
-    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* url */, jni::alias_ref<jni::JMap<jni::JString, jni::JString>> /* headers */, jni::alias_ref<JSSESessionOptions> /* session */, jni::alias_ref<JSSEReconnectOptions> /* reconnect */, jni::alias_ref<jni::JString> /* httpMethod */, jni::alias_ref<jni::JString> /* body */, jni::alias_ref<jni::JBoolean> /* validateContentType */)>("connect");
+  void JHybridSSEClientSpec::connect(const std::string& url, const std::optional<std::unordered_map<std::string, std::string>>& headers, const std::optional<SSESessionOptions>& session, const std::optional<SSEReconnectOptions>& reconnect, const std::optional<std::string>& httpMethod, const std::optional<std::string>& body, std::optional<bool> validateContentType, std::optional<bool> autoParseJSON) {
+    static const auto method = _javaPart->javaClassStatic()->getMethod<void(jni::alias_ref<jni::JString> /* url */, jni::alias_ref<jni::JMap<jni::JString, jni::JString>> /* headers */, jni::alias_ref<JSSESessionOptions> /* session */, jni::alias_ref<JSSEReconnectOptions> /* reconnect */, jni::alias_ref<jni::JString> /* httpMethod */, jni::alias_ref<jni::JString> /* body */, jni::alias_ref<jni::JBoolean> /* validateContentType */, jni::alias_ref<jni::JBoolean> /* autoParseJSON */)>("connect");
     method(_javaPart, jni::make_jstring(url), headers.has_value() ? [&]() -> jni::local_ref<jni::JMap<jni::JString, jni::JString>> {
       auto __map = jni::JHashMap<jni::JString, jni::JString>::create(headers.value().size());
       for (const auto& __entry : headers.value()) {
         __map->put(jni::make_jstring(__entry.first), jni::make_jstring(__entry.second));
       }
       return __map;
-    }() : nullptr, session.has_value() ? JSSESessionOptions::fromCpp(session.value()) : nullptr, reconnect.has_value() ? JSSEReconnectOptions::fromCpp(reconnect.value()) : nullptr, httpMethod.has_value() ? jni::make_jstring(httpMethod.value()) : nullptr, body.has_value() ? jni::make_jstring(body.value()) : nullptr, validateContentType.has_value() ? jni::JBoolean::valueOf(validateContentType.value()) : nullptr);
+    }() : nullptr, session.has_value() ? JSSESessionOptions::fromCpp(session.value()) : nullptr, reconnect.has_value() ? JSSEReconnectOptions::fromCpp(reconnect.value()) : nullptr, httpMethod.has_value() ? jni::make_jstring(httpMethod.value()) : nullptr, body.has_value() ? jni::make_jstring(body.value()) : nullptr, validateContentType.has_value() ? jni::JBoolean::valueOf(validateContentType.value()) : nullptr, autoParseJSON.has_value() ? jni::JBoolean::valueOf(autoParseJSON.value()) : nullptr);
   }
   void JHybridSSEClientSpec::disconnect() {
     static const auto method = _javaPart->javaClassStatic()->getMethod<void()>("disconnect");

@@ -146,6 +146,15 @@ class HybridSSEClient: HybridSSEClientSpec {
   // even been attempted yet.
   private var hasNetworkConnectivity: Bool?
 
+  // Heartbeat watchdog (SSEReconnectOptions.heartbeatTimeoutMs). A self-resetting "dead man's
+  // switch": every byte received (including bare `:` heartbeat comments, which reach handleData
+  // before parseAndEmit ever filters them out) reschedules this: if it ever actually fires, no
+  // data of any kind arrived within the window, so the connection is presumed dead.
+  private var heartbeatTimeoutMs: Double?
+  private var heartbeatWatchdog: DispatchWorkItem?
+
+  private var shouldAutoParseJSON = false
+
   public override init() {
     super.init()
     streamDelegate.client = self
@@ -158,7 +167,8 @@ class HybridSSEClient: HybridSSEClientSpec {
     reconnect: SSEReconnectOptions?,
     httpMethod: String?,
     body: String?,
-    validateContentType: Bool?
+    validateContentType: Bool?,
+    autoParseJSON: Bool?
   ) throws {
     // Validated before touching any existing connection, so a bad URL on a reconnect attempt
     // doesn't tear down a connection that was working fine — and reported through onError like
@@ -187,6 +197,8 @@ class HybridSSEClient: HybridSSEClientSpec {
     reconnectMaxAttempts = reconnect?.maxAttempts
     retryOnClientError = reconnect?.retryOnClientError ?? false
     monitorNetworkEnabled = reconnect?.monitorNetwork ?? true
+    heartbeatTimeoutMs = reconnect?.heartbeatTimeoutMs
+    shouldAutoParseJSON = autoParseJSON ?? false
 
     startNetworkMonitoringIfNeeded()
     setState(.connecting)
@@ -222,6 +234,47 @@ class HybridSSEClient: HybridSSEClientSpec {
     networkMonitor?.cancel()
     networkMonitor = nil
     hasNetworkConnectivity = nil
+  }
+
+  // Cancels any pending watchdog and, if heartbeatTimeoutMs is set, schedules a fresh one — call
+  // this on every sign of life (the first onOpen, and every subsequent byte received) to keep
+  // pushing the deadline out. Left disabled (no-op beyond the cancel) when heartbeatTimeoutMs is
+  // nil, which is the default.
+  private func resetHeartbeatWatchdog() {
+    heartbeatWatchdog?.cancel()
+    heartbeatWatchdog = nil
+    guard let heartbeatTimeoutMs else { return }
+    let work = DispatchWorkItem { [weak self] in
+      self?.handleHeartbeatTimeout()
+    }
+    heartbeatWatchdog = work
+    DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + heartbeatTimeoutMs / 1000, execute: work)
+  }
+
+  private func stopHeartbeatWatchdog() {
+    heartbeatWatchdog?.cancel()
+    heartbeatWatchdog = nil
+  }
+
+  // Only ever runs if nothing else already ended this connection first (a real completion/error,
+  // or disconnect()/a superseding connect() — all of which call stopHeartbeatWatchdog(), which
+  // cancels this DispatchWorkItem outright, so a stale watchdog from an already-ended connection
+  // can never reach here). Treated exactly like any other transport failure: torn down and
+  // reported synchronously here, same as disconnect() does, rather than waiting for the OS's own
+  // (cancelled-task) completion callback, which is a silent no-op by design.
+  private func handleHeartbeatTimeout() {
+    guard currentTask != nil else { return }
+    currentTask?.cancel()
+    currentTask = nil
+    let timeoutMs = heartbeatTimeoutMs ?? 0
+    NSLog("[Native SSE][iOS] heartbeat timeout — no data for %.0fms, treating connection as dead", timeoutMs)
+    onError(SSEError(
+      message: "No data received for \(Int(timeoutMs))ms — connection appears dead",
+      type: .timeout,
+      statusCode: nil
+    ))
+    onClose()
+    scheduleReconnectIfNeeded(afterHttpStatus: nil, wasContentTypeError: false)
   }
 
   // Proactively tears down whatever's currently happening (an open connection, or a reconnect
@@ -271,6 +324,7 @@ class HybridSSEClient: HybridSSEClientSpec {
     // guard the same way it would if we'd already moved on to a new task.
     currentTask?.cancel()
     currentTask = nil
+    stopHeartbeatWatchdog()
 
     connectGeneration += 1
     let generation = connectGeneration
@@ -351,6 +405,7 @@ class HybridSSEClient: HybridSSEClientSpec {
     currentTask?.cancel()
     currentTask = nil
     stopNetworkMonitoring()
+    stopHeartbeatWatchdog()
     setState(.closed)
     if hadActiveTask {
       onClose()
@@ -366,6 +421,7 @@ class HybridSSEClient: HybridSSEClientSpec {
     pendingReconnect?.cancel()
     currentTask?.cancel()
     stopNetworkMonitoring()
+    stopHeartbeatWatchdog()
   }
 
   fileprivate func handleResponse(task: URLSessionTask, response: URLResponse) {
@@ -377,6 +433,7 @@ class HybridSSEClient: HybridSSEClientSpec {
     guard let httpResponse = response as? HTTPURLResponse else {
       reconnectAttempts = 0
       setState(.open)
+      resetHeartbeatWatchdog()
       onOpen()
       return
     }
@@ -401,6 +458,7 @@ class HybridSSEClient: HybridSSEClientSpec {
 
     reconnectAttempts = 0
     setState(.open)
+    resetHeartbeatWatchdog()
     onOpen()
   }
 
@@ -409,6 +467,10 @@ class HybridSSEClient: HybridSSEClientSpec {
     // superseded connection's late-arriving data can't get appended into the new connection's
     // (already-reset) byteBuffer.
     guard task === currentTask else { return }
+
+    // Any bytes at all — including a bare `:` heartbeat comment line, which never reaches
+    // parseAndEmit as a message — count as a sign of life for the watchdog.
+    resetHeartbeatWatchdog()
 
     if pendingErrorType != nil {
       let remaining = maxErrorBodyBytes - errorBodyData.count
@@ -438,6 +500,7 @@ class HybridSSEClient: HybridSSEClientSpec {
     // disconnect() fires onClose synchronously itself, so a cancellation reaching here is always
     // either that (already handled) or a superseded task (nothing to report).
     guard task === currentTask else { return }
+    stopHeartbeatWatchdog()
 
     if let errorType = pendingErrorType {
       let statusCode = pendingErrorStatusCode
@@ -594,11 +657,25 @@ class HybridSSEClient: HybridSSEClientSpec {
 
     guard !dataLines.isEmpty else { return }
 
+    let joinedData = dataLines.joined(separator: "\n")
     onMessage(SSEMessageEvent(
       id: id,
       event: eventName,
-      data: dataLines.joined(separator: "\n"),
-      timestampMs: Date().timeIntervalSince1970 * 1000
+      data: joinedData,
+      timestampMs: Date().timeIntervalSince1970 * 1000,
+      parsedData: shouldAutoParseJSON ? Self.tryParseJSONObject(joinedData) : nil
     ))
+  }
+
+  // Best-effort: nil (not thrown) for invalid JSON, or valid JSON whose top-level value isn't an
+  // object — AnyMap itself represents a map, so a top-level array/string/number/bool has nowhere
+  // to go. AnyValue.fromAny already recurses through nested arrays/objects.
+  private static func tryParseJSONObject(_ text: String) -> AnyMap? {
+    guard let utf8 = text.data(using: .utf8),
+          let jsonObject = try? JSONSerialization.jsonObject(with: utf8),
+          let dictionary = jsonObject as? [String: Any] else {
+      return nil
+    }
+    return try? AnyMap.fromDictionary(dictionary.mapValues { $0 as Any? })
   }
 }
