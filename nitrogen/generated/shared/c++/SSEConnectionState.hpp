@@ -33,8 +33,9 @@ namespace margelo::nitro::nitrosseclient {
     CONNECTING      SWIFT_NAME(connecting) = 1,
     OPEN      SWIFT_NAME(open) = 2,
     RECONNECTING      SWIFT_NAME(reconnecting) = 3,
-    CLOSED      SWIFT_NAME(closed) = 4,
-    FAILED      SWIFT_NAME(failed) = 5,
+    PAUSED      SWIFT_NAME(paused) = 4,
+    CLOSED      SWIFT_NAME(closed) = 5,
+    FAILED      SWIFT_NAME(failed) = 6,
   } CLOSED_ENUM;
 
 } // namespace margelo::nitro::nitrosseclient
@@ -51,6 +52,7 @@ namespace margelo::nitro {
         case hashString("connecting"): return margelo::nitro::nitrosseclient::SSEConnectionState::CONNECTING;
         case hashString("open"): return margelo::nitro::nitrosseclient::SSEConnectionState::OPEN;
         case hashString("reconnecting"): return margelo::nitro::nitrosseclient::SSEConnectionState::RECONNECTING;
+        case hashString("paused"): return margelo::nitro::nitrosseclient::SSEConnectionState::PAUSED;
         case hashString("closed"): return margelo::nitro::nitrosseclient::SSEConnectionState::CLOSED;
         case hashString("failed"): return margelo::nitro::nitrosseclient::SSEConnectionState::FAILED;
         default: [[unlikely]]
@@ -63,6 +65,7 @@ namespace margelo::nitro {
         case margelo::nitro::nitrosseclient::SSEConnectionState::CONNECTING: return JSIConverter<std::string>::toJSI(runtime, "connecting");
         case margelo::nitro::nitrosseclient::SSEConnectionState::OPEN: return JSIConverter<std::string>::toJSI(runtime, "open");
         case margelo::nitro::nitrosseclient::SSEConnectionState::RECONNECTING: return JSIConverter<std::string>::toJSI(runtime, "reconnecting");
+        case margelo::nitro::nitrosseclient::SSEConnectionState::PAUSED: return JSIConverter<std::string>::toJSI(runtime, "paused");
         case margelo::nitro::nitrosseclient::SSEConnectionState::CLOSED: return JSIConverter<std::string>::toJSI(runtime, "closed");
         case margelo::nitro::nitrosseclient::SSEConnectionState::FAILED: return JSIConverter<std::string>::toJSI(runtime, "failed");
         default: [[unlikely]]
@@ -80,6 +83,7 @@ namespace margelo::nitro {
         case hashString("connecting"):
         case hashString("open"):
         case hashString("reconnecting"):
+        case hashString("paused"):
         case hashString("closed"):
         case hashString("failed"):
           return true;
