@@ -161,4 +161,12 @@ export interface SSEClient
   /** Fires on every state transition — see SSEConnectionState. Only fires when the state actually
    * changes (no duplicate events for the same state). */
   onStateChange: (state: SSEConnectionState) => void
+  /**
+   * Awaited immediately before every request this stream makes — the initial connect() and every
+   * automatic reconnect alike — so it's the right place to refresh a short-lived auth token
+   * rather than letting a reconnect fire with a stale one. Whatever headers it resolves with are
+   * merged over the connect()-time headers (resolved values win on a key collision). Defaults to
+   * a no-op that resolves immediately with no extra headers.
+   */
+  onBeforeRequest: () => Promise<Record<string, string>>
 }

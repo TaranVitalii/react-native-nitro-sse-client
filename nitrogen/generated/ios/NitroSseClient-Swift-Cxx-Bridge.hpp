@@ -38,6 +38,8 @@ namespace NitroSseClient { class HybridSSEClientSpec_cxx; }
 #include "SSEMessageEvent.hpp"
 #include "SSEReconnectOptions.hpp"
 #include "SSESessionOptions.hpp"
+#include <NitroModules/Promise.hpp>
+#include <NitroModules/PromiseHolder.hpp>
 #include <NitroModules/Result.hpp>
 #include <exception>
 #include <functional>
@@ -275,6 +277,119 @@ namespace margelo::nitro::nitrosseclient::bridge::swift {
   Func_void_SSEConnectionState create_Func_void_SSEConnectionState(void* NON_NULL swiftClosureWrapper) noexcept;
   inline Func_void_SSEConnectionState_Wrapper wrap_Func_void_SSEConnectionState(Func_void_SSEConnectionState value) noexcept {
     return Func_void_SSEConnectionState_Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>
+  /**
+   * Specialized version of `std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>`.
+   */
+  using std__shared_ptr_Promise_std__unordered_map_std__string__std__string___ = std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>;
+  inline std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>> create_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___() noexcept {
+    return Promise<std::unordered_map<std::string, std::string>>::create();
+  }
+  inline PromiseHolder<std::unordered_map<std::string, std::string>> wrap_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___(std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>> promise) noexcept {
+    return PromiseHolder<std::unordered_map<std::string, std::string>>(std::move(promise));
+  }
+  
+  // pragma MARK: std::function<void(const std::unordered_map<std::string, std::string>& /* result */)>
+  /**
+   * Specialized version of `std::function<void(const std::unordered_map<std::string, std::string>&)>`.
+   */
+  using Func_void_std__unordered_map_std__string__std__string_ = std::function<void(const std::unordered_map<std::string, std::string>& /* result */)>;
+  /**
+   * Wrapper class for a `std::function<void(const std::unordered_map<std::string, std::string>& / * result * /)>`, this can be used from Swift.
+   */
+  class Func_void_std__unordered_map_std__string__std__string__Wrapper final {
+  public:
+    explicit Func_void_std__unordered_map_std__string__std__string__Wrapper(std::function<void(const std::unordered_map<std::string, std::string>& /* result */)>&& func): _function(std::make_unique<std::function<void(const std::unordered_map<std::string, std::string>& /* result */)>>(std::move(func))) {}
+    inline void call(std::unordered_map<std::string, std::string> result) const noexcept {
+      _function->operator()(result);
+    }
+  private:
+    std::unique_ptr<std::function<void(const std::unordered_map<std::string, std::string>& /* result */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_std__unordered_map_std__string__std__string_ create_Func_void_std__unordered_map_std__string__std__string_(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_std__unordered_map_std__string__std__string__Wrapper wrap_Func_void_std__unordered_map_std__string__std__string_(Func_void_std__unordered_map_std__string__std__string_ value) noexcept {
+    return Func_void_std__unordered_map_std__string__std__string__Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::function<void(const std::exception_ptr& /* error */)>
+  /**
+   * Specialized version of `std::function<void(const std::exception_ptr&)>`.
+   */
+  using Func_void_std__exception_ptr = std::function<void(const std::exception_ptr& /* error */)>;
+  /**
+   * Wrapper class for a `std::function<void(const std::exception_ptr& / * error * /)>`, this can be used from Swift.
+   */
+  class Func_void_std__exception_ptr_Wrapper final {
+  public:
+    explicit Func_void_std__exception_ptr_Wrapper(std::function<void(const std::exception_ptr& /* error */)>&& func): _function(std::make_unique<std::function<void(const std::exception_ptr& /* error */)>>(std::move(func))) {}
+    inline void call(std::exception_ptr error) const noexcept {
+      _function->operator()(error);
+    }
+  private:
+    std::unique_ptr<std::function<void(const std::exception_ptr& /* error */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_std__exception_ptr create_Func_void_std__exception_ptr(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_std__exception_ptr_Wrapper wrap_Func_void_std__exception_ptr(Func_void_std__exception_ptr value) noexcept {
+    return Func_void_std__exception_ptr_Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>
+  /**
+   * Specialized version of `std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>`.
+   */
+  using Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____ = std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>;
+  /**
+   * Wrapper class for a `std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>`, this can be used from Swift.
+   */
+  class Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string______Wrapper final {
+  public:
+    explicit Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string______Wrapper(std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>&& func): _function(std::make_unique<std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>>(std::move(func))) {}
+    inline std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>> call() const noexcept {
+      auto __result = _function->operator()();
+      return __result;
+    }
+  private:
+    std::unique_ptr<std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____ create_Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string______Wrapper wrap_Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____(Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____ value) noexcept {
+    return Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string______Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>
+  /**
+   * Specialized version of `std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>`.
+   */
+  using std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____ = std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>;
+  inline std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>> create_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____() noexcept {
+    return Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>::create();
+  }
+  inline PromiseHolder<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>> wrap_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____(std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>> promise) noexcept {
+    return PromiseHolder<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>(std::move(promise));
+  }
+  
+  // pragma MARK: std::function<void(const std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>& /* result */)>
+  /**
+   * Specialized version of `std::function<void(const std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>&)>`.
+   */
+  using Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___ = std::function<void(const std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>& /* result */)>;
+  /**
+   * Wrapper class for a `std::function<void(const std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>& / * result * /)>`, this can be used from Swift.
+   */
+  class Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string____Wrapper final {
+  public:
+    explicit Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string____Wrapper(std::function<void(const std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>& /* result */)>&& func): _function(std::make_unique<std::function<void(const std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>& /* result */)>>(std::move(func))) {}
+    inline void call(std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>> result) const noexcept {
+      _function->operator()(result);
+    }
+  private:
+    std::unique_ptr<std::function<void(const std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>& /* result */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___ create_Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___(void* NON_NULL swiftClosureWrapper) noexcept;
+  inline Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string____Wrapper wrap_Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___(Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___ value) noexcept {
+    return Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string____Wrapper(std::move(value));
   }
   
   // pragma MARK: std::shared_ptr<HybridSSEClientSpec>

@@ -54,6 +54,39 @@ namespace margelo::nitro::nitrosseclient::bridge::swift {
     };
   }
   
+  // pragma MARK: std::function<void(const std::unordered_map<std::string, std::string>& /* result */)>
+  Func_void_std__unordered_map_std__string__std__string_ create_Func_void_std__unordered_map_std__string__std__string_(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = NitroSseClient::Func_void_std__unordered_map_std__string__std__string_::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const std::unordered_map<std::string, std::string>& result) mutable -> void {
+      swiftClosure.call(result);
+    };
+  }
+  
+  // pragma MARK: std::function<void(const std::exception_ptr& /* error */)>
+  Func_void_std__exception_ptr create_Func_void_std__exception_ptr(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = NitroSseClient::Func_void_std__exception_ptr::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const std::exception_ptr& error) mutable -> void {
+      swiftClosure.call(error);
+    };
+  }
+  
+  // pragma MARK: std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>
+  Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____ create_Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = NitroSseClient::Func_std__shared_ptr_Promise_std__shared_ptr_Promise_std__unordered_map_std__string__std__string_____::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)]() mutable -> std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>> {
+      auto __result = swiftClosure.call();
+      return __result;
+    };
+  }
+  
+  // pragma MARK: std::function<void(const std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>& /* result */)>
+  Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___ create_Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___(void* NON_NULL swiftClosureWrapper) noexcept {
+    auto swiftClosure = NitroSseClient::Func_void_std__shared_ptr_Promise_std__unordered_map_std__string__std__string___::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>& result) mutable -> void {
+      swiftClosure.call(result);
+    };
+  }
+  
   // pragma MARK: std::shared_ptr<HybridSSEClientSpec>
   std::shared_ptr<HybridSSEClientSpec> create_std__shared_ptr_HybridSSEClientSpec_(void* NON_NULL swiftUnsafePointer) noexcept {
     NitroSseClient::HybridSSEClientSpec_cxx swiftPart = NitroSseClient::HybridSSEClientSpec_cxx::fromUnsafe(swiftUnsafePointer);

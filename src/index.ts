@@ -135,6 +135,14 @@ export class SSEStream {
     this.userOnStateChange = callback
   }
 
+  /** Awaited immediately before every request this stream makes — the initial connect() and
+   * every automatic reconnect alike — so it's the right place to refresh a short-lived auth
+   * token rather than letting a reconnect fire with a stale one. Whatever headers it resolves
+   * with are merged over the connect()-time headers (resolved values win on a key collision). */
+  set onBeforeRequest(callback: () => Promise<Record<string, string>>) {
+    this.native.onBeforeRequest = callback
+  }
+
   /** The stream's current connection state — see SSEConnectionState. Always up to date; doesn't
    * require an onStateChange listener to be registered. */
   getState(): SSEConnectionState {

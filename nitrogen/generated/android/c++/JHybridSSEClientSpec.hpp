@@ -62,6 +62,8 @@ namespace margelo::nitro::nitrosseclient {
     void setOnMetrics(const std::function<void(const SSEConnectionMetrics& /* metrics */)>& onMetrics) override;
     std::function<void(SSEConnectionState /* state */)> getOnStateChange() override;
     void setOnStateChange(const std::function<void(SSEConnectionState /* state */)>& onStateChange) override;
+    std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()> getOnBeforeRequest() override;
+    void setOnBeforeRequest(const std::function<std::shared_ptr<Promise<std::shared_ptr<Promise<std::unordered_map<std::string, std::string>>>>>()>& onBeforeRequest) override;
 
   public:
     // Methods
