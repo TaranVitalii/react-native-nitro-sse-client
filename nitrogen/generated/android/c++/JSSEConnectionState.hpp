@@ -54,6 +54,9 @@ namespace margelo::nitro::nitrosseclient {
         case SSEConnectionState::RECONNECTING:
           static const auto fieldRECONNECTING = clazz->getStaticField<JSSEConnectionState>("RECONNECTING");
           return clazz->getStaticFieldValue(fieldRECONNECTING);
+        case SSEConnectionState::PAUSED:
+          static const auto fieldPAUSED = clazz->getStaticField<JSSEConnectionState>("PAUSED");
+          return clazz->getStaticFieldValue(fieldPAUSED);
         case SSEConnectionState::CLOSED:
           static const auto fieldCLOSED = clazz->getStaticField<JSSEConnectionState>("CLOSED");
           return clazz->getStaticFieldValue(fieldCLOSED);
