@@ -333,6 +333,12 @@ stream.onMessage = (event) => {
 
 `parsedData` is only populated when `data` is valid JSON *and* its top-level value is an object (`{...}`) — a bare array/string/number at the top level, or invalid JSON, leaves it `undefined` and `data` is still there as a fallback. It's parsed via Nitro's `AnyMap`, which crosses the JSI boundary directly (no bridge serialization), so this is strictly faster than parsing the same JSON yourself in JS.
 
+**Android: integer fields may come through as `BigInt`, not `number`.** `AnyMap` preserves full precision for integral values crossing the JSI boundary on Android, so a field like a millisecond timestamp (e.g. `Date.now()`) can arrive as a JS `BigInt` rather than a `number` — iOS returns a plain `number` for the same payload. This is transparent for arithmetic and comparisons, but `JSON.stringify` throws on `BigInt` (`"Do not know how to serialize a BigInt"`), so avoid passing `parsedData` (or any field of it) straight into `JSON.stringify` — check `typeof` first, or stringify with a replacer:
+
+```ts
+JSON.stringify(event.parsedData, (_key, value) => (typeof value === 'bigint' ? value.toString() : value))
+```
+
 ## Connection state
 
 `getState()`/`onStateChange` expose the stream's connection lifecycle as an explicit `SSEConnectionState` — handy for driving a "reconnecting…" indicator without piecing it together from `onOpen`/`onError`/`onClose` yourself:
