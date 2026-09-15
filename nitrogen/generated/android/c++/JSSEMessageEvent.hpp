@@ -10,6 +10,8 @@
 #include <fbjni/fbjni.h>
 #include "SSEMessageEvent.hpp"
 
+#include <NitroModules/AnyMap.hpp>
+#include <NitroModules/JAnyMap.hpp>
 #include <optional>
 #include <string>
 
@@ -40,11 +42,14 @@ namespace margelo::nitro::nitrosseclient {
       jni::local_ref<jni::JString> data = this->getFieldValue(fieldData);
       static const auto fieldTimestampMs = clazz->getField<double>("timestampMs");
       double timestampMs = this->getFieldValue(fieldTimestampMs);
+      static const auto fieldParsedData = clazz->getField<JAnyMap::javaobject>("parsedData");
+      jni::local_ref<JAnyMap::javaobject> parsedData = this->getFieldValue(fieldParsedData);
       return SSEMessageEvent(
         id != nullptr ? std::make_optional(id->toStdString()) : std::nullopt,
         event != nullptr ? std::make_optional(event->toStdString()) : std::nullopt,
         data->toStdString(),
-        timestampMs
+        timestampMs,
+        parsedData != nullptr ? std::make_optional(parsedData->cthis()->getMap()) : std::nullopt
       );
     }
 
@@ -54,7 +59,7 @@ namespace margelo::nitro::nitrosseclient {
      */
     [[maybe_unused]]
     static jni::local_ref<JSSEMessageEvent::javaobject> fromCpp(const SSEMessageEvent& value) {
-      using JSignature = JSSEMessageEvent(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, double);
+      using JSignature = JSSEMessageEvent(jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, jni::alias_ref<jni::JString>, double, jni::alias_ref<JAnyMap::javaobject>);
       static const auto clazz = javaClassStatic();
       static const auto create = clazz->getStaticMethod<JSignature>("fromCpp");
       return create(
@@ -62,7 +67,8 @@ namespace margelo::nitro::nitrosseclient {
         value.id.has_value() ? jni::make_jstring(value.id.value()) : nullptr,
         value.event.has_value() ? jni::make_jstring(value.event.value()) : nullptr,
         jni::make_jstring(value.data),
-        value.timestampMs
+        value.timestampMs,
+        value.parsedData.has_value() ? JAnyMap::create(value.parsedData.value()) : nullptr
       );
     }
   };

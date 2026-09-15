@@ -10,7 +10,7 @@ package com.margelo.nitro.nitrosseclient
 import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
 import java.util.Objects
-
+import com.margelo.nitro.core.AnyMap
 
 /**
  * Represents the JavaScript object/struct "SSEMessageEvent".
@@ -29,7 +29,10 @@ data class SSEMessageEvent(
   val data: String,
   @DoNotStrip
   @Keep
-  val timestampMs: Double
+  val timestampMs: Double,
+  @DoNotStrip
+  @Keep
+  val parsedData: AnyMap?
 ) {
   /* primary constructor */
 
@@ -40,6 +43,7 @@ data class SSEMessageEvent(
       && Objects.deepEquals(this.event, other.event)
       && Objects.deepEquals(this.data, other.data)
       && Objects.deepEquals(this.timestampMs, other.timestampMs)
+      && Objects.deepEquals(this.parsedData, other.parsedData)
   }
 
   override fun hashCode(): Int {
@@ -47,7 +51,8 @@ data class SSEMessageEvent(
       id,
       event,
       data,
-      timestampMs
+      timestampMs,
+      parsedData
     ).contentDeepHashCode()
   }
 
@@ -59,8 +64,8 @@ data class SSEMessageEvent(
     @Keep
     @Suppress("unused")
     @JvmStatic
-    private fun fromCpp(id: String?, event: String?, data: String, timestampMs: Double): SSEMessageEvent {
-      return SSEMessageEvent(id, event, data, timestampMs)
+    private fun fromCpp(id: String?, event: String?, data: String, timestampMs: Double, parsedData: AnyMap?): SSEMessageEvent {
+      return SSEMessageEvent(id, event, data, timestampMs, parsedData)
     }
   }
 }
